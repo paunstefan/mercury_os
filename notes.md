@@ -1,10 +1,27 @@
 # Notes
 
-## Rust target installation
+## Rust
+
+Target installation:
 
 ```bash
 rustup target add x86_64-unknown-none
 ```
+
+Install nightly toolchain and xbuild
+
+```bash
+rustup update nightly
+
+cargo install cargo-xbuild
+rustup component add rust-src --toolchain=nightly
+```
+
+## Binutils
+
+Download binutils either prebuilt or build them yourself for the needed architecture.
+
+<https://wiki.osdev.org/GCC_Cross-Compiler>
 
 ## Boot process
 
@@ -15,6 +32,14 @@ rustup target add x86_64-unknown-none
 5) Load GDT (for long mode, it will just be flat memory)
 6) Long jump to 64bit code
 
+
+## Running
+
+To run:
+
+```bash
+qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio
+```
 
 ## Links
 

@@ -1,0 +1,236 @@
+use crate::logging;
+use core::{arch::asm, fmt, mem::size_of};
+
+static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
+
+pub fn init_idt() {
+    unsafe {
+        IDT.breakpoint.set_handler_fn(breakpoint_handler as u64);
+        IDT.load();
+    }
+}
+
+extern "x86-interrupt" fn breakpoint_handler() {
+    log!("EXCEPTION: BREAKPOINT");
+}
+
+/// An Interrupt Descriptor Table entry.
+///
+/// The generic parameter can either be `HandlerFunc` or `HandlerFuncWithErrCode`, depending
+/// on the interrupt vector.
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct Entry {
+    pointer_low: u16,
+    gdt_selector: u16,
+    options: EntryOptions,
+    pointer_middle: u16,
+    pointer_high: u32,
+    reserved: u32,
+}
+
+impl Entry {
+    /// Creates a non-present IDT entry (but sets the must-be-one bits).
+    #[inline]
+    pub const fn missing() -> Self {
+        Entry {
+            gdt_selector: 0,
+            pointer_low: 0,
+            pointer_middle: 0,
+            pointer_high: 0,
+            options: EntryOptions::minimal(),
+            reserved: 0,
+        }
+    }
+
+    /// Set the handler address for the IDT entry and sets the present bit.
+    ///
+    /// For the code selector field, this function uses the code segment selector currently
+    /// active in the CPU.
+    ///
+    /// The function returns a mutable reference to the entry's options that allows
+    /// further customization.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `addr` is the address of a valid interrupt handler function,
+    /// and the signature of such a function is correct for the entry type.
+    #[inline]
+    pub unsafe fn set_handler_fn(&mut self, addr: u64) -> &mut EntryOptions {
+        self.pointer_low = addr as u16;
+        self.pointer_middle = (addr >> 16) as u16;
+        self.pointer_high = (addr >> 32) as u32;
+
+        let cs: u16;
+        unsafe { asm!("mov {0:x}, cs", out(reg) cs, options(nomem, nostack, preserves_flags)) };
+
+        self.gdt_selector = cs;
+
+        self.options.set_present(true);
+        &mut self.options
+    }
+
+    /// Returns the virtual address of this IDT entry's handler function.
+    #[inline]
+    pub fn handler_addr(&self) -> u64 {
+        self.pointer_low as u64
+            | (self.pointer_middle as u64) << 16
+            | (self.pointer_high as u64) << 32
+    }
+}
+
+impl fmt::Debug for Entry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Entry")
+            .field("handler_addr", &format_args!("{:#x}", self.handler_addr()))
+            .field("gdt_selector", &self.gdt_selector)
+            .field("options", &self.options)
+            .finish()
+    }
+}
+
+#[repr(transparent)]
+#[derive(Clone, Copy, PartialEq)]
+pub struct EntryOptions(u16);
+
+impl fmt::Debug for EntryOptions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_tuple("EntryOptions")
+            .field(&format_args!("{:#06x}", self.0))
+            .finish()
+    }
+}
+
+impl EntryOptions {
+    /// Creates a minimal options field with the Gate Type bits set to Interrupt Gate
+    #[inline]
+    const fn minimal() -> Self {
+        EntryOptions(0b1110_0000_0000)
+    }
+
+    /// Set or reset the present bit.
+    #[inline]
+    pub fn set_present(&mut self, present: bool) -> &mut Self {
+        if present {
+            self.0 |= 1 << 15;
+        } else {
+            self.0 &= !(1 << 15);
+        }
+        self
+    }
+
+    /// Set the required privilege level (DPL) for invoking the handler. The DPL can be 0, 1, 2,
+    /// or 3, the default is 0. If CPL < DPL, a general protection fault occurs.
+    #[inline]
+    pub fn set_privilege_level(&mut self, dpl: u16) -> &mut Self {
+        self.0 &= !(3 << 13);
+        self.0 ^= (dpl & 3) << 13;
+
+        self
+    }
+
+    /// Let the CPU disable hardware interrupts when the handler is invoked. By default,
+    /// interrupts are disabled on handler invocation.
+    #[inline]
+    pub fn disable_interrupts(&mut self, disable: bool) -> &mut Self {
+        if disable {
+            self.0 &= !(1 << 8);
+        } else {
+            self.0 |= 1 << 8;
+        }
+
+        self
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+#[repr(C, packed(2))]
+pub struct DescriptorTablePointer {
+    /// Size of the DT.
+    pub limit: u16,
+    /// Pointer to the memory region containing the DT.
+    pub base: u64,
+}
+
+#[derive(Clone, Debug)]
+#[repr(C)]
+#[repr(align(16))]
+pub struct InterruptDescriptorTable {
+    pub divide_error: Entry,
+    pub debug: Entry,
+    pub non_maskable_interrupt: Entry,
+    pub breakpoint: Entry,
+    pub overflow: Entry,
+    pub bound_range_exceeded: Entry,
+    pub invalid_opcode: Entry,
+    pub device_not_available: Entry,
+    pub double_fault: Entry,
+    pub coprocessor_segment_overrun: Entry,
+    pub invalid_tss: Entry,
+    pub segment_not_present: Entry,
+    pub stack_segment_fault: Entry,
+    pub general_protection_fault: Entry,
+    pub page_fault: Entry,
+    reserved_1: Entry,
+    pub x87_floating_point: Entry,
+    pub alignment_check: Entry,
+    pub machine_check: Entry,
+    pub simd_floating_point: Entry,
+    pub virtualization: Entry,
+    pub cp_protection_exception: Entry,
+    reserved_2: [Entry; 6],
+    pub hv_injection_exception: Entry,
+    pub vmm_communication_exception: Entry,
+    pub security_exception: Entry,
+    reserved_3: Entry,
+    pub interrupts: [Entry; 256 - 32],
+}
+
+impl InterruptDescriptorTable {
+    /// Creates a new IDT filled with non-present entries.
+    #[inline]
+    pub const fn new() -> InterruptDescriptorTable {
+        InterruptDescriptorTable {
+            divide_error: Entry::missing(),
+            debug: Entry::missing(),
+            non_maskable_interrupt: Entry::missing(),
+            breakpoint: Entry::missing(),
+            overflow: Entry::missing(),
+            bound_range_exceeded: Entry::missing(),
+            invalid_opcode: Entry::missing(),
+            device_not_available: Entry::missing(),
+            double_fault: Entry::missing(),
+            coprocessor_segment_overrun: Entry::missing(),
+            invalid_tss: Entry::missing(),
+            segment_not_present: Entry::missing(),
+            stack_segment_fault: Entry::missing(),
+            general_protection_fault: Entry::missing(),
+            page_fault: Entry::missing(),
+            reserved_1: Entry::missing(),
+            x87_floating_point: Entry::missing(),
+            alignment_check: Entry::missing(),
+            machine_check: Entry::missing(),
+            simd_floating_point: Entry::missing(),
+            virtualization: Entry::missing(),
+            cp_protection_exception: Entry::missing(),
+            reserved_2: [Entry::missing(); 6],
+            hv_injection_exception: Entry::missing(),
+            vmm_communication_exception: Entry::missing(),
+            security_exception: Entry::missing(),
+            reserved_3: Entry::missing(),
+            interrupts: [Entry::missing(); 256 - 32],
+        }
+    }
+
+    /// Load the IDT using the lidt instruction.
+    /// # Safety
+    /// Self should be a valid IDT structure and it must live for the lifetime of the kernel
+    #[inline]
+    pub unsafe fn load(&'static self) {
+        let idtr = DescriptorTablePointer {
+            base: self as *const _ as u64,
+            limit: (size_of::<Self>() - 1) as u16,
+        };
+        unsafe { asm!("lidt [{}]", in(reg) &idtr, options(readonly, nostack, preserves_flags)) }
+    }
+}

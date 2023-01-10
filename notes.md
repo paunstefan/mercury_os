@@ -41,6 +41,20 @@ To run:
 qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio
 ```
 
+### Debugging
+
+QEMU has an integrated GDB server that can be used to debug the kernel.
+
+```bash
+make -DEBUG=1
+qemu-system-x86_64 -s -S -kernel kernel.amd64.bin -serial stdio
+
+gdb kernel.amd64.bin.elf64
+> target remote localhost:1234
+> break kmain
+> continue
+```
+
 ## Links
 
 * <https://www.pagetable.com/?p=14>

@@ -37,6 +37,13 @@ OBJS := start.o kernel.a
 OBJS := $(OBJS:%=$(OBJDIR)%)
 BIN := ./kernel.$(ARCH).bin
 
+RUST_DEBUG := 
+AS_DEBUG := -g
+ifndef DEBUG
+	RELEASE += --release
+	AS_DEBUG := 
+endif
+
 .PHONY: all clean PHONY
 
 all: $(BIN)
@@ -57,13 +64,13 @@ endif
 # Compile rust kernel object
 $(OBJDIR)kernel.a: PHONY Makefile
 	@mkdir -p $(dir $@)
-	cd kernel; RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) build -Z build-std=core --target=$(TARGETSPEC) --release
+	cd kernel; RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) build -Z build-std=core --target=$(TARGETSPEC) $(RELEASE)
 	@cp kernel/target/target/release/libkernel.a $@
 
 # Compile architecture's assembly stub
 $(OBJDIR)start.o: kernel/src/arch/$(ARCH)/start.S Makefile
 	@mkdir -p $(dir $@)
-	$(AS) $(ASFLAGS) -o $@ $<
+	$(AS) $(ASFLAGS) $(AS_DEBUG) -o $@ $<
 
 
 # Include dependency files

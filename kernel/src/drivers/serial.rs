@@ -14,8 +14,8 @@ pub struct Serial;
 
 impl SerialPort for Serial {
     fn put_char(c: u8) {
-        #[cfg(target_arch = "x86_64")]
         unsafe {
+            #[cfg(target_arch = "x86_64")]
             crate::arch::x86_serial::putb(c)
         }
     }

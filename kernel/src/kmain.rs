@@ -1,5 +1,6 @@
 #![feature(panic_handler)]
 #![feature(core_intrinsics)]
+#![feature(abi_x86_interrupt)]
 #![no_std]
 #![no_main]
 
@@ -14,6 +15,7 @@ pub mod arch;
 
 mod logging;
 
+use core::arch::asm;
 use core::intrinsics;
 use core::panic::PanicInfo;
 
@@ -27,5 +29,12 @@ pub fn panic_implementation(_info: &::core::panic::PanicInfo) -> ! {
 #[no_mangle]
 pub fn kmain() {
     log!("Hello world! 1={}", 1);
+
+    arch::interrupts::init_idt();
+    unsafe {
+        asm!("int3", options(nomem, nostack));
+    }
+
+    log!("Did not crash (yet)");
     loop {}
 }

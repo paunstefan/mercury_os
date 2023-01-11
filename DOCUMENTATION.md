@@ -1,7 +1,7 @@
 # MercuryOS documentation
 
 MercuryOS is an experimental Rust operating system. The initial implementation is for
-the x86-64 architecture.
+the x86-64 architecture (AMD64 will be used interchangebly as the name).
 
 ## Development environment
 
@@ -85,10 +85,28 @@ user space.
 As the name implies, the GDT is a table of 64bit entries, each entry contains the base address, limit address (both are ignored on 64bit CPUs), and
 some flags.
 
-After is is built, the GDT is loaded using the `ldgdt` instruction.
+After is is built, the GDT is loaded using the `lgdt` instruction, which expects a pointer structure made out of the size
+of the table and the starting address.
+
+In addition to code and data segments, the GDT also contains system segments, more precisely the Task State Segment.
+On AMD64 CPUs, this structure holds stack pointers for additional stacks that will be used when changing privilege levels and
+when executing an interrupt handler.
 
 * <https://wiki.osdev.org/Global_Descriptor_Table>
 
 ## Interrupts
+
+Interrupts are a way to tell the CPU to stop executing the current code and run an Interrupt Service Routine.
+They can be caused by an exception (an error that the CPU detected when executing an instruction), 
+an external device or by the `INT` instruction.
+
+Interrupts are organized in the Interrupt Descriptor Table, which is similar to the GDT, but holds the addresses
+of the interrupt handlers (ISR). The first 32 entries in the IDT are reserved for exceptions and the rest until 256
+can be configured by the OS. The IDT is loaded by the CPU using the `lidt` instruction, which expects a pointer
+structure like the one for the GDT.
+
+Interrupt handlers differ from simple functions because they use a different calling convention
+
+* <https://wiki.osdev.org/Interrupt>
 
 ## Memory management

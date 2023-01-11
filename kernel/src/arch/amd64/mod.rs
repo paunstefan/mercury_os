@@ -6,3 +6,5 @@ mod x86_io;
 pub mod x86_serial;
 
 pub mod interrupts;
+
+pub mod gdt;

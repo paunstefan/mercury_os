@@ -212,6 +212,7 @@ mboot_ptr:	.long 0
 GDTPtr_low:
 	.word GDTEnd - GDT - 1
 	.long GDT - KERNEL_BASE
+.globl GDTPtr
 GDTPtr:
 	.word GDTEnd - GDT - 1
 	.quad GDT
@@ -222,4 +223,6 @@ GDT:
 	.long 0x00000000, 0x00009200    /* 0x10: 64-bit Data */
 	.long 0x00000000, 0x0020FA00    /* 0x18: 64-bit User Code       */
 	.long 0x00000000, 0x0000F200    /* 0x20: User Data (64 version) */
+	.long 0x00000000, 0x00000000    /* 0x28: TSS (Empty here, will be initialized later) */
+	.long 0x00000000, 0x00000000	/* 0x30: TSS continue */
 GDTEnd:

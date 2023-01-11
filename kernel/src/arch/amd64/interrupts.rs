@@ -6,19 +6,54 @@ static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
 pub fn init_idt() {
     unsafe {
         IDT.breakpoint.set_handler_fn(breakpoint_handler as u64);
+        // IDT.breakpoint.options.set_IST(1);
+        IDT.double_fault.set_handler_fn(double_fault_handler as u64);
+        IDT.double_fault.options.set_IST(1);
         IDT.load();
     }
 }
 
-extern "x86-interrupt" fn breakpoint_handler() {
-    log!("EXCEPTION: BREAKPOINT");
+extern "x86-interrupt" fn double_fault_handler(
+    stack_frame: InterruptStackFrame,
+    error_code: u64,
+) -> ! {
+    log!(
+        "EXCEPTION: DOUBLE FAULT error code: {}\n{:#?}",
+        error_code,
+        stack_frame
+    );
+
+    panic!();
 }
 
+extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
+    log!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
+}
+
+/// Represents the interrupt stack frame pushed by the CPU on interrupt or exception entry.
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct InterruptStackFrame {
+    /// This value points to the instruction that should be executed when the interrupt
+    /// handler returns. For most interrupts, this value points to the instruction immediately
+    /// following the last executed instruction. However, for some exceptions (e.g., page faults),
+    /// this value points to the faulting instruction, so that the instruction is restarted on
+    /// return. See the documentation of the [`InterruptDescriptorTable`] fields for more details.
+    pub instruction_pointer: u64,
+    /// The code segment selector, padded with zeros.
+    pub code_segment: u64,
+    /// The flags register before the interrupt handler was invoked.
+    pub cpu_flags: u64,
+    /// The stack pointer at the time of the interrupt.
+    pub stack_pointer: u64,
+    /// The stack segment descriptor at the time of the interrupt (often zero in 64-bit mode).
+    pub stack_segment: u64,
+}
 /// An Interrupt Descriptor Table entry.
 ///
 /// The generic parameter can either be `HandlerFunc` or `HandlerFuncWithErrCode`, depending
 /// on the interrupt vector.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Entry {
     pointer_low: u16,
@@ -79,27 +114,9 @@ impl Entry {
     }
 }
 
-impl fmt::Debug for Entry {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Entry")
-            .field("handler_addr", &format_args!("{:#x}", self.handler_addr()))
-            .field("gdt_selector", &self.gdt_selector)
-            .field("options", &self.options)
-            .finish()
-    }
-}
-
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct EntryOptions(u16);
-
-impl fmt::Debug for EntryOptions {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("EntryOptions")
-            .field(&format_args!("{:#06x}", self.0))
-            .finish()
-    }
-}
 
 impl EntryOptions {
     /// Creates a minimal options field with the Gate Type bits set to Interrupt Gate
@@ -124,7 +141,7 @@ impl EntryOptions {
     #[inline]
     pub fn set_privilege_level(&mut self, dpl: u16) -> &mut Self {
         self.0 &= !(3 << 13);
-        self.0 ^= (dpl & 3) << 13;
+        self.0 |= (dpl & 3) << 13;
 
         self
     }
@@ -138,6 +155,17 @@ impl EntryOptions {
         } else {
             self.0 |= 1 << 8;
         }
+
+        self
+    }
+
+    /// A 3-bit value which is an offset into the Interrupt Stack Table,
+    /// which is stored in the Task State Segment.
+    /// If the bits are all set to zero, the Interrupt Stack Table is not used.
+    #[inline]
+    pub fn set_IST(&mut self, ist: u16) -> &mut Self {
+        self.0 &= !7;
+        self.0 |= ist & 7;
 
         self
     }

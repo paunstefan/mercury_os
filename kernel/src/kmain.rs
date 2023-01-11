@@ -30,11 +30,23 @@ pub fn panic_implementation(_info: &::core::panic::PanicInfo) -> ! {
 pub fn kmain() {
     log!("Hello world! 1={}", 1);
 
-    arch::interrupts::init_idt();
+    init_kernel();
     unsafe {
         asm!("int3", options(nomem, nostack));
     }
 
+    // trigger a page fault
+    // unsafe {
+    //     *(0xdeadbeef as *mut u64) = 42;
+    // };
+
     log!("Did not crash (yet)");
     loop {}
+}
+
+fn init_kernel() {
+    arch::gdt::init_tss();
+    log!("Initialized TSS");
+    arch::interrupts::init_idt();
+    log!("Initialized IDT");
 }

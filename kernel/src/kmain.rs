@@ -22,7 +22,7 @@ use core::panic::PanicInfo;
 mod drivers;
 
 #[panic_handler]
-pub fn panic_implementation(_info: &::core::panic::PanicInfo) -> ! {
+pub fn panic_implementation(_info: &PanicInfo) -> ! {
     unsafe { intrinsics::abort() }
 }
 

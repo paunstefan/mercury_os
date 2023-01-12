@@ -1,5 +1,3 @@
-use crate::logging;
-
 /// A very primitive logging macro
 ///
 /// Obtaines a logger instance (locking the log channel) with the current module name passed

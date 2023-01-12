@@ -1,4 +1,3 @@
-use crate::logging;
 use core::{arch::asm, mem::size_of};
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
@@ -17,8 +16,7 @@ pub fn init_tss() {
             static mut STACK: [u8; STACK_SIZE as usize] = [0; STACK_SIZE as usize];
 
             let stack_start = &STACK as *const _ as u64;
-            let stack_end = stack_start + STACK_SIZE;
-            stack_end
+            stack_start + STACK_SIZE
         };
 
         GlobalDescriptorTable::replace_tss(5, &TSS);
@@ -33,11 +31,11 @@ pub fn init_tss() {
 struct GlobalDescriptorTable;
 
 impl GlobalDescriptorTable {
-    /// Replaces the memory at [offset] with a new TSS
-    pub fn replace_tss(offset: u64, tss: &'static TaskStateSegment) {
+    /// Replaces the memory at [index] with a new TSS
+    pub unsafe fn replace_tss(index: u64, tss: &'static TaskStateSegment) {
         let (low, high) = tss_segment(tss);
         unsafe {
-            let tss_addr = (&mut GDT as *mut u64).offset(offset as isize);
+            let tss_addr = (&mut GDT as *mut u64).offset(index as isize);
 
             *tss_addr = low;
             *(tss_addr.offset(1)) = high;

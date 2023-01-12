@@ -1,14 +1,7 @@
-
 /*
- * Rust BareBones OS
- * - By John Hodge (Mutabah/thePowersGang) 
+ * x86_64 entry point
  *
- * arcm/amd64/start.S
- * - AMD64 Entrypoint
- *
- * == LICENCE ==
- * This code has been put into the public domain, there are no restrictions on
- * its use, and the author takes no liability.
+ * Inspired by Rust BareBones OS by thePowersGang
  */
 
 /* The kernel is linked to run at -2GB. This allows efficient addressing */

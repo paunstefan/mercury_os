@@ -21,7 +21,7 @@ impl Writer {
         // Print the module name before returning (prefixes all messages)
         {
             use core::fmt::Write;
-            let _ = write!(&mut ret, "[{}] ", module);
+            let _ = write!(&mut ret, "[{module}] ");
         }
 
         ret

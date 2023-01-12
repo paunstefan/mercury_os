@@ -42,7 +42,7 @@ They will need to be downloaded or built by yourself for the specific target. Mo
 The Makefile in the root of the project is used to assemble the `start.S` file, the Rust kernel library as a static library and 
 finally link everything together.
 
-To run the image using QEMU just execute the `run.sh` script.
+To run the image using QEMU just run `make run` or `make rundebug` if you want to start with GDB.
 
 ## Boot process
 

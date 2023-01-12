@@ -55,6 +55,13 @@ gdb kernel.amd64.bin.elf64
 > continue
 ```
 
+To find the line corresponding to an address use:
+
+```bash
+llvm-addr2line -e kernel.amd64.bin.elf64 -i -C -f ffffffff80101b0c
+# -i is used for inline functions, tis makes addr2line also output the whole call path
+```
+
 ## Links
 
 * <https://www.pagetable.com/?p=14>

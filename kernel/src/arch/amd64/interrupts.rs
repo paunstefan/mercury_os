@@ -1,5 +1,6 @@
+#![allow(non_snake_case)]
 use crate::logging;
-use core::{arch::asm, fmt, mem::size_of};
+use core::{arch::asm, mem::size_of};
 
 static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
 
@@ -97,7 +98,7 @@ impl Entry {
         self.pointer_high = (addr >> 32) as u32;
 
         let cs: u16;
-        unsafe { asm!("mov {0:x}, cs", out(reg) cs, options(nomem, nostack, preserves_flags)) };
+        asm!("mov {0:x}, cs", out(reg) cs, options(nomem, nostack, preserves_flags));
 
         self.gdt_selector = cs;
 
@@ -259,6 +260,6 @@ impl InterruptDescriptorTable {
             base: self as *const _ as u64,
             limit: (size_of::<Self>() - 1) as u16,
         };
-        unsafe { asm!("lidt [{}]", in(reg) &idtr, options(readonly, nostack, preserves_flags)) }
+        asm!("lidt [{}]", in(reg) &idtr, options(readonly, nostack, preserves_flags))
     }
 }

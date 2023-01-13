@@ -8,12 +8,11 @@ Target installation:
 rustup target add x86_64-unknown-none
 ```
 
-Install nightly toolchain and xbuild
+Install nightly toolchain
 
 ```bash
 rustup update nightly
 
-cargo install cargo-xbuild
 rustup component add rust-src --toolchain=nightly
 ```
 
@@ -60,6 +59,13 @@ To find the line corresponding to an address use:
 ```bash
 llvm-addr2line -e kernel.amd64.bin.elf64 -i -C -f ffffffff80101b0c
 # -i is used for inline functions, tis makes addr2line also output the whole call path
+```
+
+## Docker
+
+```bash
+podman build -t paunstefan/mercuryos .
+podman run --rm -it --entrypoint tmux --name mercury_dev -v  "$(pwd)":/usr/src/mercury_os/ paunstefan/mercuryos
 ```
 
 ## Links

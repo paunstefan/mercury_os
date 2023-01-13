@@ -46,14 +46,6 @@ BIN := ./kernel.$(ARCH).bin
 
 all: $(BIN)
 
-clean:
-	$(RM) -rf $(BIN) $(BIN).dsm $(OBJDIR)
-
-run:
-	qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio -display none
-
-rundebug:
-	qemu-system-x86_64 -s -S -kernel kernel.amd64.bin -serial stdio -display none
 
 # Final link command
 $(BIN): $(OBJS) kernel/src/arch/$(ARCH)/link.ld
@@ -80,3 +72,15 @@ $(OBJDIR)start.o: kernel/src/arch/$(ARCH)/start.S Makefile
 
 # Include dependency files
 -include $(OBJDIR)start.d
+
+clean:
+	$(RM) -rf $(BIN) $(BIN).dsm $(OBJDIR)
+
+run:
+	qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio -display none
+
+rundebug:
+	qemu-system-x86_64 -s -S -kernel kernel.amd64.bin -serial stdio -display none
+
+docker:
+	podman run --rm -it --entrypoint tmux --name mercury_dev -v  "$(pwd)":/usr/src/mercury_os/ paunstefan/mercuryos

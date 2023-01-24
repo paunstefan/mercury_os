@@ -125,7 +125,10 @@ start64_high:
 	
 	/* Set up stack pointer */
 	mov $init_stack, %rsp
-	
+
+	/* Pass Multiboot info to main */
+	mov mboot_sig, %edi
+	mov mboot_ptr, %esi
 	/* call the rust code */
 	call kmain
 

@@ -14,9 +14,14 @@ mod macros;
 pub mod arch;
 
 mod logging;
+mod multiboot;
+
+#[cfg(target_arch = "x86_64")]
+pub const KERNEL_BASE: u64 = 0xFFFFFFFF80000000;
 
 use core::arch::asm;
 use core::intrinsics;
+use core::mem::size_of;
 use core::panic::PanicInfo;
 
 mod drivers;
@@ -27,12 +32,28 @@ pub fn panic_implementation(_info: &PanicInfo) -> ! {
 }
 
 #[no_mangle]
-pub fn kmain() {
+pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     log!("Hello world! 1={}", 1);
 
     init_kernel();
     unsafe {
         asm!("int3", options(nomem, nostack));
+    }
+
+    log!("multiboot_magic: 0x{:x}", multiboot_magic);
+
+    log!("multiboot_info: 0x{:x}", multiboot_info);
+    unsafe {
+        let mb_info = &*((multiboot_info + KERNEL_BASE) as *const multiboot::MultibootInfo);
+        log!("{:?}", mb_info);
+
+        for i in 0..(mb_info.mmap_length / size_of::<multiboot::MmapEntry>() as u32) {
+            let mmap_entry = &*((mb_info.mmap_addr as u64 + KERNEL_BASE)
+                as *const multiboot::MmapEntry)
+                .offset(i as isize);
+
+            log!("Entry {}: {:?}", i, mmap_entry);
+        }
     }
 
     // trigger a page fault

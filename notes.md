@@ -63,8 +63,8 @@ llvm-addr2line -e kernel.amd64.bin.elf64 -i -C -f ffffffff80101b0c
 ## Docker
 
 ```bash
-podman build -t paunstefan/mercuryos .
-podman run --rm -it --entrypoint tmux --name mercury_dev -v  "$(pwd)":/usr/src/mercury_os/ paunstefan/mercuryos
+podman build -t mercuryos/dev .
+podman run --rm -it --entrypoint tmux --name mercury_dev -v  "$(pwd)":/usr/src/mercury_os/ mercuryos/dev
 ```
 
 ## Links

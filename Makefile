@@ -87,7 +87,7 @@ rundebug:
 	qemu-system-x86_64 -s -S -kernel kernel.amd64.bin -serial stdio -display none
 
 docker:
-	podman run --rm -it --entrypoint tmux --name mercury_dev -v  "$(shell pwd)":/usr/src/mercury_os/ paunstefan/mercuryos
+	podman run --rm -it --entrypoint tmux --name mercury_dev -v  "$(shell pwd)":/usr/src/mercury_os/ mercuryos/dev
 
 iso: $(BIN)
 	genisoimage -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -A os -input-charset utf8 -quiet -boot-info-table -o os.iso iso

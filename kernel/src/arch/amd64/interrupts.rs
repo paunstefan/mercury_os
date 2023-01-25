@@ -10,6 +10,7 @@ pub fn init_idt() {
         // IDT.breakpoint.options.set_IST(1);
         IDT.double_fault.set_handler_fn(double_fault_handler as u64);
         IDT.double_fault.options.set_IST(1);
+        IDT.page_fault.set_handler_fn(page_fault_handler as u64);
         IDT.load();
     }
 }
@@ -29,6 +30,18 @@ extern "x86-interrupt" fn double_fault_handler(
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
     log!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn page_fault_handler(stack_frame: InterruptStackFrame, error_code: u64) {
+    log!("EXCEPTION: PAGE FAULT");
+    log!(
+        "Accessed Address: 0x{:x}",
+        crate::arch::registers::Cr2::read()
+    );
+    log!("Error Code: {}", error_code);
+    log!("{:#?}", stack_frame);
+
+    //panic!();
 }
 
 /// Represents the interrupt stack frame pushed by the CPU on interrupt or exception entry.

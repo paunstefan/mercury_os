@@ -13,3 +13,5 @@ pub mod interrupts;
 pub mod gdt;
 
 pub mod paging;
+
+pub mod addressing;

@@ -110,3 +110,35 @@ Interrupt handlers differ from simple functions because they use a different cal
 * <https://wiki.osdev.org/Interrupt>
 
 ## Memory management
+
+MercuryOS uses paging for memory management. It uses 2MB pages, that means there is a 3 level page table.
+Each page table contains 512 64bit entries, each one pointing to the physical address of the next table,
+or, in case of the last table, the start address of the physical memory frame.
+
+Physical addresses on x86_64 are 52bit, while virtual addresses are 48bit.
+
+Page entries are structured as following:
+
+```
+64       52 51                12 11            0
++----------+--------------------+--------------+
+| Reserved |  Physical address  |    Flags     |
++----------+--------------------+--------------+
+```
+
+Because the first 12 bits are flags, each page table must be aligned to 4096 bytes.
+
+To signal that the pages are 2MB in size and not the standard 4KB, the entries in the Page Directory (P2)
+have the 7th bit(PS) set.
+
+When the CPU gets to an instruction that involves memory access, it uses the virtual address to index
+into the page tables, after the last page table it uses the last 21 bits to offset into the frame.
+
+A virtual address is split as following:
+
+```
+47       39 38      30 29      21 20            0
++----------+----------+----------+--------------+
+| P4 index | P3 index | P2 index | Frame offset |
++----------+----------+----------+--------------+
+```

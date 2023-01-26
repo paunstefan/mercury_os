@@ -21,12 +21,12 @@ use core::intrinsics;
 use core::mem::size_of;
 use core::panic::PanicInfo;
 
+use crate::arch::addressing::{translate_virtual_address, VirtAddr};
+
 mod drivers;
 
 // TODO: make register reading/writing functions
-
-#[cfg(target_arch = "x86_64")]
-pub const KERNEL_BASE: u64 = 0xFFFFFFFF80000000;
+// TODO: use new VirtAddr and PhysAddr abstractions
 
 // Symbol from linker script
 // Can't be accessed as variable, but can as function pointer
@@ -35,39 +35,53 @@ extern "C" {
 }
 
 #[panic_handler]
-pub fn panic_implementation(_info: &PanicInfo) -> ! {
-    unsafe { intrinsics::abort() }
+pub fn panic_implementation(info: &PanicInfo) -> ! {
+    log!("{}", info);
+    loop {}
 }
 
 #[no_mangle]
 pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     log!("Hello world! 1={}", 1);
-
     init_kernel();
     unsafe {
         asm!("int3", options(nomem, nostack));
     }
 
-    {
-        log!("multiboot_magic: 0x{:x}", multiboot_magic);
+    // {
+    //     log!("multiboot_magic: 0x{:x}", multiboot_magic);
 
-        log!("multiboot_info: 0x{:x}", multiboot_info);
-        unsafe {
-            let mb_info = &*((multiboot_info + KERNEL_BASE) as *const multiboot::MultibootInfo);
-            log!("{:?}", mb_info);
+    //     log!("multiboot_info: 0x{:x}", multiboot_info);
+    //     unsafe {
+    //         let mb_info = &*((multiboot_info + KERNEL_BASE) as *const multiboot::MultibootInfo);
+    //         log!("{:?}", mb_info);
 
-            for i in 0..(mb_info.mmap_length / size_of::<multiboot::MmapEntry>() as u32) {
-                let mmap_entry = &*((mb_info.mmap_addr as u64 + KERNEL_BASE)
-                    as *const multiboot::MmapEntry)
-                    .offset(i as isize);
+    //         for i in 0..(mb_info.mmap_length / size_of::<multiboot::MmapEntry>() as u32) {
+    //             let mmap_entry = &*((mb_info.mmap_addr as u64 + KERNEL_BASE)
+    //                 as *const multiboot::MmapEntry)
+    //                 .offset(i as isize);
 
-                log!("Entry {}: {:?}", i, mmap_entry);
-            }
-            log!("kernel_end: 0x{:x}", kernel_end as u64);
+    //             log!("Entry {}: {:?}", i, mmap_entry);
+    //         }
+    //         log!("kernel_end: 0x{:x}", kernel_end as u64);
+    //     }
+    // }
+
+    let pml4 = unsafe { arch::paging::active_level_4_table(arch::addressing::KERNEL_BASE) };
+    for entry in pml4.iter() {
+        if !entry.is_unused() {
+            log!("Entry {:?}", entry);
         }
     }
 
-    log!("PML4: {:?}", arch::registers::Cr3::read());
+    {
+        let x = 42;
+        let x_ptr = &x as *const i32;
+
+        let vaddr = VirtAddr::from_ptr(x_ptr);
+        log!("{:?}", vaddr);
+        log!("{:?}", translate_virtual_address(vaddr));
+    }
 
     // trigger a page fault
     // unsafe {

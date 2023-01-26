@@ -2,6 +2,8 @@
 use crate::logging;
 use core::{arch::asm, mem::size_of};
 
+use super::addressing::VirtAddr;
+
 static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
 
 pub fn init_idt() {
@@ -121,10 +123,12 @@ impl Entry {
 
     /// Returns the virtual address of this IDT entry's handler function.
     #[inline]
-    pub fn handler_addr(&self) -> u64 {
-        self.pointer_low as u64
-            | (self.pointer_middle as u64) << 16
-            | (self.pointer_high as u64) << 32
+    pub fn handler_addr(&self) -> VirtAddr {
+        VirtAddr::new(
+            self.pointer_low as u64
+                | (self.pointer_middle as u64) << 16
+                | (self.pointer_high as u64) << 32,
+        )
     }
 }
 

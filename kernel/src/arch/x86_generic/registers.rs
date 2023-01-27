@@ -1,6 +1,6 @@
 use core::arch::asm;
 
-use super::paging::PhysFrame;
+use super::{addressing::PhysAddr, paging::Frame};
 
 /// Page fault source address
 pub struct Cr2;
@@ -24,7 +24,7 @@ pub struct Cr3;
 impl Cr3 {
     /// Read the current P4 table address from the CR3 register
     #[inline]
-    pub fn read() -> (PhysFrame, u16) {
+    pub fn read() -> (Frame, u16) {
         let value: u64;
 
         unsafe {
@@ -32,8 +32,8 @@ impl Cr3 {
         }
 
         let addr = value & 0x_000f_ffff_ffff_f000;
-        let frame = PhysFrame {
-            start_address: addr,
+        let frame = Frame {
+            start_address: PhysAddr::new(addr),
         };
         (frame, (value & 0xFFF) as u16)
     }

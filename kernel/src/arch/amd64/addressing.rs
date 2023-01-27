@@ -27,7 +27,7 @@ impl VirtAddr {
         let (level_4_table_frame, _) = super::registers::Cr3::read();
 
         let table_indexes = [self.p4_index(), self.p3_index(), self.p2_index()];
-        let mut frame = level_4_table_frame.start_address();
+        let mut frame = level_4_table_frame.start_address;
 
         // traverse the multi-level page table
         for &index in &table_indexes {

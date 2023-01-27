@@ -38,7 +38,4 @@ SECTIONS {
 	
 	kernel_end = .;
 	
-	/DISCARD/ : {
-		*(.note .note.*)
-	}
 }

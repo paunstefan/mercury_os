@@ -1,9 +1,82 @@
+use super::addressing::{PhysAddr, VirtAddr, KERNEL_BASE};
+use crate::logging;
+use crate::multiboot::{MmapEntry, MultibootInfo};
 use core::{
     fmt,
+    mem::size_of,
     ops::{Index, IndexMut},
 };
 
-use super::addressing::{PhysAddr, VirtAddr};
+// Symbol from linker script
+// Can't be accessed as variable, but can as function pointer
+extern "C" {
+    fn kernel_end();
+}
+
+pub const PAGE_SIZE: u64 = 2 * 1024 * 1024;
+
+#[derive(Debug)]
+pub struct PageFrameAllocator {
+    bitmap: *mut u8,
+    multiboot_info: &'static MultibootInfo,
+    total_pages: u64,
+    starting_address: u64,
+}
+
+impl PageFrameAllocator {
+    /// Initialize the Page Frame Allocator
+    /// Safety:
+    /// The Multiboot structure must have a valid Mmap pointer
+    /// Kernel_end must point to the end of the kernel allocated memory
+    pub unsafe fn init(multiboot_info: &'static MultibootInfo) -> Self {
+        // Find out how much memory and create a bitmap of 2MB frames
+        let mmap_iter = (0..(multiboot_info.mmap_length as usize / size_of::<MmapEntry>()))
+            //.step_by(size_of::<MmapEntry>())
+            .map(|i| &*((multiboot_info.mmap_addr as u64 + KERNEL_BASE) as *const MmapEntry).add(i))
+            .filter(|entry| entry.typ == 1 && entry.len >= PAGE_SIZE);
+
+        let starting_address = mmap_iter
+            .clone()
+            .next()
+            .expect("No entries in Multiboot MMap")
+            .addr;
+
+        let total_pages = mmap_iter.map(|entry| entry.len).sum::<u64>() / PAGE_SIZE;
+
+        let bitmap_len = ((total_pages / 8) + 1) as isize;
+
+        let bitmap: *mut u8 = (kernel_end as u64 + 8) as _;
+
+        for i in 0..bitmap_len {
+            *(bitmap.offset(i)) = 0;
+        }
+
+        //TODO: mark the 2 kernel pages as occupied
+
+        PageFrameAllocator {
+            bitmap,
+            multiboot_info,
+            total_pages,
+            starting_address,
+        }
+    }
+
+    #[inline]
+    pub fn get_bitmap_len(&self) -> usize {
+        ((self.total_pages / 8) + 1) as usize
+    }
+
+    /// Allocates the first free page
+    /// Marks its location with a 1 in the bitmap
+    pub fn alloc_next(&mut self) -> Frame {
+        todo!()
+    }
+
+    /// Frees the given page
+    pub fn free(&mut self, frame: Frame) {
+        todo!()
+    }
+}
 
 /// A virtual memory page.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -40,7 +113,7 @@ impl Page {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(C)]
 pub struct Frame {
-    start_address: PhysAddr,
+    pub start_address: PhysAddr,
 }
 
 impl Frame {
@@ -77,25 +150,10 @@ pub unsafe fn active_level_4_table(physical_memory_offset: u64) -> &'static mut 
     let (level_4_table_frame, _) = super::registers::Cr3::read();
 
     let phys = level_4_table_frame.start_address;
-    let virt = VirtAddr::new(physical_memory_offset + phys);
+    let virt = VirtAddr::new(physical_memory_offset + phys.as_u64());
     let page_table_ptr: *mut PageTable = virt.as_mut_ptr();
 
     &mut *page_table_ptr // unsafe
-}
-
-/// A physical memory frame.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[repr(C)]
-pub struct PhysFrame {
-    pub start_address: u64,
-}
-
-impl PhysFrame {
-    /// Creates an unused page table entry.
-    #[inline]
-    pub fn start_address(&self) -> PhysAddr {
-        PhysAddr::new(self.start_address)
-    }
 }
 
 /// The number of entries in a page table.

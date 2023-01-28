@@ -1,9 +1,7 @@
-use core::{
-    fmt,
-    ops::{Index, IndexMut},
-};
+use core::fmt;
 
 use super::paging::PageTable;
+use crate::utils;
 
 pub const KERNEL_BASE: u64 = 0xFFFFFFFF80000000;
 
@@ -124,14 +122,14 @@ impl VirtAddr {
 
     /// Checks whether the virtual address has the demanded alignment.
     #[inline]
-    pub fn is_aligned(self, align: u64) -> bool {
-        self.align_down(align) == self
+    pub fn is_aligned(self, alignment: u64) -> bool {
+        self.align_down(alignment) == self
     }
 
     /// Aligns the virtual address downwards to the given alignment.
     #[inline]
-    pub fn align_down(self, align: u64) -> Self {
-        VirtAddr::new(self.0 & !(align - 1))
+    pub fn align_down(self, alignment: u64) -> Self {
+        VirtAddr::new(utils::align_down(self.0, alignment))
     }
 }
 
@@ -207,7 +205,7 @@ impl PhysAddr {
 
     /// Aligns the virtual physical downwards to the given alignment.
     #[inline]
-    pub fn align_down(self, align: u64) -> Self {
-        PhysAddr::new(self.0 & !(align - 1))
+    pub fn align_down(self, alignment: u64) -> Self {
+        PhysAddr::new(utils::align_down(self.0, alignment))
     }
 }

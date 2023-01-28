@@ -6,6 +6,7 @@ use super::addressing::VirtAddr;
 
 static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
 
+#[allow(clippy::fn_to_numeric_cast)]
 pub fn init_idt() {
     unsafe {
         IDT.breakpoint.set_handler_fn(breakpoint_handler as u64);

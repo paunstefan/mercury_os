@@ -47,17 +47,17 @@ pub struct MmapEntry {
 #[derive(Debug)]
 #[repr(u32)]
 pub enum MmapType {
-    AVAILABLE = 1,
-    RESERVED = 2,
-    OTHER,
+    Available = 1,
+    Reserved = 2,
+    Other,
 }
 
 impl From<u32> for MmapType {
     fn from(value: u32) -> Self {
         match value {
-            1 => MmapType::AVAILABLE,
-            2 => MmapType::RESERVED,
-            _ => MmapType::OTHER,
+            1 => MmapType::Available,
+            2 => MmapType::Reserved,
+            _ => MmapType::Other,
         }
     }
 }

@@ -14,6 +14,7 @@ pub mod arch;
 
 mod logging;
 mod multiboot;
+mod utils;
 
 use core::arch::asm;
 use core::mem::size_of;
@@ -28,6 +29,7 @@ mod drivers;
 
 // TODO: make register reading/writing functions
 // TODO: use new VirtAddr and PhysAddr abstractions
+// TODO IMPORTANT: check unsafe usage
 
 #[panic_handler]
 pub fn panic_implementation(info: &PanicInfo) -> ! {
@@ -62,18 +64,27 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     }
     let mb_info = unsafe { multiboot::MultibootInfo::read(multiboot_info) };
     unsafe {
-        let pfa = PageFrameAllocator::init(mb_info);
+        // testing frame allocator
+        let mut pfa = PageFrameAllocator::init(mb_info);
         log!("{:#?}", pfa);
+        let f1 = pfa.alloc_next();
+        log!("{:?}", f1);
+        let f1 = pfa.alloc_next();
+        log!("{:?}", f1);
+        pfa.free(f1.unwrap());
+        let f1 = pfa.alloc_next();
+        log!("{:?}", f1);
     };
 
-    {
-        let x = 42;
-        let x_ptr = &x as *const i32;
+    // {
+    // // testing address translation
+    //     let x = 42;
+    //     let x_ptr = &x as *const i32;
 
-        let vaddr = VirtAddr::from_ptr(x_ptr);
-        log!("{:?}", vaddr);
-        log!("{:?}", translate_virtual_address(vaddr));
-    }
+    //     let vaddr = VirtAddr::from_ptr(x_ptr);
+    //     log!("{:?}", vaddr);
+    //     log!("{:?}", translate_virtual_address(vaddr));
+    // }
 
     // trigger a page fault
     // unsafe {

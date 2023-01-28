@@ -2,6 +2,7 @@ use crate::arch;
 
 /// Write a single byte to the output channel
 ///
+/// # Safety
 /// This method is unsafe because it does port accesses without synchronisation
 pub unsafe fn putb(b: u8) {
     // Wait for the serial port's fifo to not be empty

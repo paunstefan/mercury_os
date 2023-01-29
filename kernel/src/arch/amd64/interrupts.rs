@@ -83,7 +83,6 @@ pub struct Entry {
 
 impl Entry {
     /// Creates a non-present IDT entry (but sets the must-be-one bits).
-    #[inline]
     pub const fn missing() -> Self {
         Entry {
             gdt_selector: 0,
@@ -107,7 +106,6 @@ impl Entry {
     ///
     /// The caller must ensure that `addr` is the address of a valid interrupt handler function,
     /// and the signature of such a function is correct for the entry type.
-    #[inline]
     pub unsafe fn set_handler_fn(&mut self, addr: u64) -> &mut EntryOptions {
         self.pointer_low = addr as u16;
         self.pointer_middle = (addr >> 16) as u16;
@@ -235,7 +233,6 @@ pub struct InterruptDescriptorTable {
 
 impl InterruptDescriptorTable {
     /// Creates a new IDT filled with non-present entries.
-    #[inline]
     pub const fn new() -> InterruptDescriptorTable {
         InterruptDescriptorTable {
             divide_error: Entry::missing(),

@@ -16,7 +16,7 @@ impl SerialPort for Serial {
     fn put_char(c: u8) {
         unsafe {
             #[cfg(target_arch = "x86_64")]
-            crate::arch::x86_serial::putb(c)
+            crate::arch::serial::putb(c)
         }
     }
 }

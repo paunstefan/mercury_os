@@ -25,7 +25,7 @@ impl VirtAddr {
         let (level_4_table_frame, _) = super::registers::Cr3::read();
 
         let table_indexes = [self.p4_index(), self.p3_index(), self.p2_index()];
-        let mut frame = level_4_table_frame.start_address;
+        let mut frame = level_4_table_frame;
 
         // traverse the multi-level page table
         for &index in &table_indexes {
@@ -96,34 +96,42 @@ impl VirtAddr {
         self.as_ptr::<T>() as *mut T
     }
 
+    /// Returns a new Page built from the page table indexes
+    #[inline]
+    pub fn from_table_indexes(p4: usize, p3: usize, p2: usize) -> Self {
+        let addr =
+            ((p4 << 39) & 0xff8000000000) | ((p3 << 30) & 0x7fc0000000) | ((p2 << 21) & 0x3fe00000);
+        VirtAddr::new(addr as u64)
+    }
+
     /// Returns the 9-bit level 4 page table index.
     #[inline]
-    pub const fn p4_index(self) -> usize {
+    pub const fn p4_index(&self) -> usize {
         (self.0 >> 12 >> 9 >> 9 >> 9) as usize & 0b111111111
     }
 
     /// Returns the 9-bit level 3 page table index.
     #[inline]
-    pub const fn p3_index(self) -> usize {
+    pub const fn p3_index(&self) -> usize {
         (self.0 >> 12 >> 9 >> 9) as usize & 0b111111111
     }
 
     /// Returns the 9-bit level 2 page table index.
     #[inline]
-    pub const fn p2_index(self) -> usize {
+    pub const fn p2_index(&self) -> usize {
         (self.0 >> 12 >> 9) as usize & 0b111111111
     }
 
     /// Returns the 21-bit page offset of this virtual address.
     #[inline]
-    pub const fn page_offset(self) -> u64 {
+    pub const fn page_offset(&self) -> u64 {
         self.0 & 0x1FFFFF
     }
 
     /// Checks whether the virtual address has the demanded alignment.
     #[inline]
-    pub fn is_aligned(self, alignment: u64) -> bool {
-        self.align_down(alignment) == self
+    pub fn is_aligned(&self, alignment: u64) -> bool {
+        self.align_down(alignment) == *self
     }
 
     /// Aligns the virtual address downwards to the given alignment.
@@ -165,7 +173,6 @@ impl PhysAddr {
     /// This function panics if a bit in the range 52 to 64 is set.
     #[inline]
     pub const fn new(addr: u64) -> Self {
-        // TODO: Replace with .ok().expect(msg) when that works on stable.
         match Self::try_new(addr) {
             Some(p) => p,
             None => panic!("physical addresses must not have any bits in the range 52 to 64 set"),
@@ -199,8 +206,8 @@ impl PhysAddr {
 
     /// Checks whether the physical address has the demanded alignment.
     #[inline]
-    pub fn is_aligned(self, align: u64) -> bool {
-        self.align_down(align) == self
+    pub fn is_aligned(&self, align: u64) -> bool {
+        self.align_down(align) == *self
     }
 
     /// Aligns the virtual physical downwards to the given alignment.

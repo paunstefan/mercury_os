@@ -20,10 +20,9 @@ use core::arch::asm;
 use core::mem::size_of;
 use core::panic::PanicInfo;
 
-use crate::arch::{
-    addressing::{translate_virtual_address, VirtAddr},
-    paging::PageFrameAllocator,
-};
+use multiboot::MultibootInfo;
+
+use crate::arch::addressing::{translate_virtual_address, VirtAddr};
 
 mod drivers;
 
@@ -40,7 +39,9 @@ pub fn panic_implementation(info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     log!("Hello world! 1={}", 1);
-    init_kernel();
+    let mb_info = unsafe { multiboot::MultibootInfo::read(multiboot_info) };
+
+    init_kernel(mb_info);
     unsafe {
         asm!("int3", options(nomem, nostack));
     }
@@ -65,25 +66,29 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     let mb_info = unsafe { multiboot::MultibootInfo::read(multiboot_info) };
     unsafe {
         // testing frame allocator
-        let mut pfa = PageFrameAllocator::init(mb_info);
-        log!("{:#?}", pfa);
-        let f1 = pfa.alloc_next();
+
+        let f1 = arch::paging::GlobalFrameAllocator.alloc_next();
         log!("{:?}", f1);
-        let f1 = pfa.alloc_next();
+        let f1 = arch::paging::GlobalFrameAllocator.alloc_next();
         log!("{:?}", f1);
-        pfa.free(f1.unwrap());
-        let f1 = pfa.alloc_next();
+        arch::paging::GlobalFrameAllocator.free(f1.unwrap());
+        let f1 = arch::paging::GlobalFrameAllocator.alloc_next();
         log!("{:?}", f1);
     };
 
     // {
-    // // testing address translation
+    //     // testing address translation
     //     let x = 42;
     //     let x_ptr = &x as *const i32;
 
     //     let vaddr = VirtAddr::from_ptr(x_ptr);
     //     log!("{:?}", vaddr);
     //     log!("{:?}", translate_virtual_address(vaddr));
+
+    //     let (a, b, c) = (vaddr.p4_index(), vaddr.p3_index(), vaddr.p2_index());
+    //     log!("{:x} {:x} {:x}", a, b, c);
+    //     let remade = VirtAddr::from_table_indexes(a, b, c);
+    //     log!("{:?}", remade);
     // }
 
     // trigger a page fault
@@ -95,9 +100,10 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     loop {}
 }
 
-fn init_kernel() {
+fn init_kernel(multiboot: &'static MultibootInfo) {
     arch::gdt::init_tss();
     log!("Initialized TSS");
     arch::interrupts::init_idt();
     log!("Initialized IDT");
+    arch::paging::init_pfa(multiboot);
 }

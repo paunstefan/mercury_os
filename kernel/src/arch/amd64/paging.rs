@@ -14,29 +14,54 @@ extern "C" {
     fn kernel_end();
 }
 
+pub static mut GlobalFrameAllocator: PageFrameAllocator = PageFrameAllocator::new();
+
 /// I use 2MB pages
 pub const PAGE_SIZE: u64 = 2 * 1024 * 1024;
 
+const PAGE_TABLE_SIZE: usize = 512;
 /// The PageAllocator creates new page table entries to
 /// allocate virtual memory to the requesting process
 #[derive(Debug)]
-pub struct PageAllocator {}
+pub struct PageAllocator {
+    PML4: PhysAddr,
+    current_page_indexes: (usize, usize, usize),
+}
+
+impl PageAllocator {
+    fn alloc_next_page(&mut self) -> Option<Page> {
+        if self.current_page_indexes.2 < PAGE_TABLE_SIZE - 1 {
+            Self::alloc_vaddr(VirtAddr::from_table_indexes(
+                self.current_page_indexes.0,
+                self.current_page_indexes.1,
+                self.current_page_indexes.2,
+            ))
+        } else {
+            // need to find anothere page table
+            todo!()
+        }
+    }
+
+    fn alloc_vaddr(addr: VirtAddr) -> Option<Page> {
+        todo!()
+    }
+}
 
 /// The PageFrameAllocator keeps track of physical memory usage using
 /// a bitmap and can mark memory as free or used when requested
 #[derive(Debug)]
 pub struct PageFrameAllocator {
     bitmap: *mut u8,
-    multiboot_info: &'static MultibootInfo,
+    multiboot_info: Option<&'static MultibootInfo>,
     total_pages: u64,
 }
 
-impl PageFrameAllocator {
-    /// Initialize the Page Frame Allocator
-    /// # Safety
-    /// The Multiboot structure must have a valid Mmap pointer.
-    /// Kernel_end must point to the end of the kernel allocated memory.
-    pub unsafe fn init(multiboot_info: &'static MultibootInfo) -> Self {
+/// Initialize the Page Frame Allocator
+/// # Safety
+/// The Multiboot structure must have a valid Mmap pointer.
+/// Kernel_end must point to the end of the kernel allocated memory.
+pub fn init_pfa(multiboot_info: &'static MultibootInfo) {
+    unsafe {
         // Find out how much memory and create a bitmap of 2MB frames
         let mmap_iter = (0..(multiboot_info.mmap_length as usize / size_of::<MmapEntry>()))
             .map(|i| &*((multiboot_info.mmap_addr as u64 + KERNEL_BASE) as *const MmapEntry).add(i))
@@ -55,7 +80,7 @@ impl PageFrameAllocator {
 
         let mut pfa = PageFrameAllocator {
             bitmap,
-            multiboot_info,
+            multiboot_info: Some(multiboot_info),
             total_pages,
         };
 
@@ -63,17 +88,28 @@ impl PageFrameAllocator {
         pfa.set_bit(0);
         pfa.set_bit(1);
 
-        pfa
+        GlobalFrameAllocator.bitmap = pfa.bitmap;
+        GlobalFrameAllocator.multiboot_info = pfa.multiboot_info;
+        GlobalFrameAllocator.total_pages = pfa.total_pages;
+    }
+}
+
+impl PageFrameAllocator {
+    pub const fn new() -> Self {
+        PageFrameAllocator {
+            bitmap: 0 as *mut u8,
+            multiboot_info: None,
+            total_pages: 0,
+        }
     }
 
     /// Returns an iterator over all the avaiable fame start addresses
     unsafe fn frame_iterator(&self) -> impl Iterator<Item = Frame> {
+        let multiboot_info = self.multiboot_info.unwrap();
         // Range of indexes into the Mmap array
-        (0..(self.multiboot_info.mmap_length as usize / size_of::<MmapEntry>()))
+        (0..(multiboot_info.mmap_length as usize / size_of::<MmapEntry>()))
             // Take references to the Mmap struct
-            .map(|i| {
-                &*((self.multiboot_info.mmap_addr as u64 + KERNEL_BASE) as *const MmapEntry).add(i)
-            })
+            .map(|i| &*((multiboot_info.mmap_addr as u64 + KERNEL_BASE) as *const MmapEntry).add(i))
             // Filter only the available ones with a size at least big enough for a frame
             .filter(|entry| entry.typ == 1 && entry.len >= PAGE_SIZE)
             // Map each entry to a range between the start and end address
@@ -234,8 +270,7 @@ impl Frame {
 pub unsafe fn active_level_4_table(physical_memory_offset: u64) -> &'static mut PageTable {
     let (level_4_table_frame, _) = super::registers::Cr3::read();
 
-    let phys = level_4_table_frame.start_address;
-    let virt = VirtAddr::new(physical_memory_offset + phys.as_u64());
+    let virt = VirtAddr::new(physical_memory_offset + level_4_table_frame.as_u64());
     let page_table_ptr: *mut PageTable = virt.as_mut_ptr();
 
     &mut *page_table_ptr // unsafe
@@ -353,7 +388,6 @@ pub struct PageTable {
 
 impl PageTable {
     /// Creates an empty page table.
-    #[inline]
     pub const fn new() -> Self {
         const EMPTY: PageTableEntry = PageTableEntry::new();
         PageTable {

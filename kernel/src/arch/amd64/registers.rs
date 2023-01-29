@@ -6,7 +6,6 @@ use super::{addressing::PhysAddr, paging::Frame};
 pub struct Cr2;
 
 impl Cr2 {
-    #[inline]
     pub fn read() -> u64 {
         let value: u64;
 
@@ -23,8 +22,7 @@ pub struct Cr3;
 
 impl Cr3 {
     /// Read the current P4 table address from the CR3 register
-    #[inline]
-    pub fn read() -> (Frame, u16) {
+    pub fn read() -> (PhysAddr, u16) {
         let value: u64;
 
         unsafe {
@@ -32,9 +30,7 @@ impl Cr3 {
         }
 
         let addr = value & 0x_000f_ffff_ffff_f000;
-        let frame = Frame {
-            start_address: PhysAddr::new(addr),
-        };
-        (frame, (value & 0xFFF) as u16)
+        let addr = PhysAddr::new(addr);
+        (addr, (value & 0xFFF) as u16)
     }
 }

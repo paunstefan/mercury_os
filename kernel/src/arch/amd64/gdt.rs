@@ -111,7 +111,6 @@ impl TaskStateSegment {
     /// As we always set the TSS segment limit to
     /// `size_of::<TaskStateSegment>() - 1`, this means that `iomap_base` is
     /// initialized to `size_of::<TaskStateSegment>()`.
-    #[inline]
     pub const fn new() -> TaskStateSegment {
         TaskStateSegment {
             privilege_stack_table: [0u64; 3],

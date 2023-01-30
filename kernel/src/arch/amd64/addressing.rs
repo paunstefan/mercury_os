@@ -28,7 +28,7 @@ impl VirtAddr {
         let mut frame = level_4_table_frame;
 
         // traverse the multi-level page table
-        for &index in &table_indexes {
+        for index in table_indexes {
             // convert the frame into a page table reference
             let virt = VirtAddr::new(physical_memory_offset + frame.as_u64());
             let table_ptr: *const PageTable = virt.as_ptr();

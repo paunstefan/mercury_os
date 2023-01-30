@@ -40,3 +40,15 @@ The Makefile contains a `run` command that starts QEMU with the following argume
 ```bash
 qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio -display none
 ```
+
+## Organization
+
+- Kernel code is placed in the `kernel` Rust crate, which contains the following:
+  - `src/` - all the kernel code
+  - `src/drivers/` - platform agnostic drivers code
+  - `src/arch/` - platform specific internals (including target description, linker script and startup code)
+  - `rust-toolchain.toml` - Rust toolchain specifier (nightly)
+- `x86_64_binutils` - needed GNU binutils for building the kernel
+- `Dockerfile` - Docker image configuration for the build environment
+- `iso/` - GRUB binary and config to build a bootable ISO
+- `DOCUMENTATION.md` - more detailed documentation of the OS internals

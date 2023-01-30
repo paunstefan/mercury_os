@@ -14,36 +14,131 @@ extern "C" {
     fn kernel_end();
 }
 
-pub static mut GlobalFrameAllocator: PageFrameAllocator = PageFrameAllocator::new();
+pub static mut GLOBAL_FRAME_ALLOCATOR: PageFrameAllocator = PageFrameAllocator::new();
 
 /// I use 2MB pages
 pub const PAGE_SIZE: u64 = 2 * 1024 * 1024;
 
-const PAGE_TABLE_SIZE: usize = 512;
 /// The PageAllocator creates new page table entries to
 /// allocate virtual memory to the requesting process
 #[derive(Debug)]
 pub struct PageAllocator {
-    PML4: PhysAddr,
-    current_page_indexes: (usize, usize, usize),
+    pml4: VirtAddr,
+    current_page_indexes: (usize, usize),
+    physical_memory_offset: u64,
 }
 
 impl PageAllocator {
-    fn alloc_next_page(&mut self) -> Option<Page> {
-        if self.current_page_indexes.2 < PAGE_TABLE_SIZE - 1 {
-            Self::alloc_vaddr(VirtAddr::from_table_indexes(
-                self.current_page_indexes.0,
-                self.current_page_indexes.1,
-                self.current_page_indexes.2,
-            ))
-        } else {
-            // need to find anothere page table
-            todo!()
+    pub fn new(p4: usize, p3: usize, physical_memory_offset: u64) -> Self {
+        let (level_4_table_frame, _) = super::registers::Cr3::read();
+
+        let virt = VirtAddr::new(physical_memory_offset + level_4_table_frame.as_u64());
+
+        PageAllocator {
+            pml4: virt,
+            current_page_indexes: (p4, p3),
+            physical_memory_offset,
         }
     }
 
-    fn alloc_vaddr(addr: VirtAddr) -> Option<Page> {
-        todo!()
+    /// Create virtual address mapping for the next free page
+    pub fn alloc_next_page(&mut self) -> Option<Page> {
+        let mut page_table_ptr: &PageTable = unsafe { &*self.pml4.as_mut_ptr() };
+        let page_indexes = [self.current_page_indexes.0, self.current_page_indexes.1];
+
+        for i in page_indexes {
+            page_table_ptr = unsafe {
+                &*VirtAddr::new(page_table_ptr[i].addr().as_u64() + self.physical_memory_offset)
+                    .as_mut_ptr()
+            };
+        }
+        // TODO: add option to alloc multiple pages
+        let mut p2_index = None;
+        for (i, p) in page_table_ptr.iter().enumerate() {
+            if p.is_unused() {
+                p2_index = Some(i);
+                break;
+            }
+        }
+
+        if let Some(p2_index) = p2_index {
+            self.alloc_vaddr(VirtAddr::from_table_indexes(
+                self.current_page_indexes.0,
+                self.current_page_indexes.1,
+                p2_index,
+            ))
+        } else {
+            // need to find another page table
+            todo!("Find a new empty page table")
+        }
+    }
+
+    /// Create virtual address mapping for the given VirtAddr
+    fn alloc_vaddr(&mut self, addr: VirtAddr) -> Option<Page> {
+        let page_indexes = [addr.p4_index(), addr.p3_index(), addr.p2_index()];
+        let mut present = true;
+        let mut page_table_ptr: &mut PageTable = unsafe { &mut *self.pml4.as_mut_ptr() };
+        let mut i = 0;
+        // Check if the page tables corresponding to the addr exist
+        loop {
+            if i == 2 {
+                break;
+            }
+            if page_table_ptr[page_indexes[i]].is_present() {
+                page_table_ptr = unsafe {
+                    &mut *VirtAddr::new(
+                        page_table_ptr[page_indexes[i]].addr().as_u64()
+                            + self.physical_memory_offset,
+                    )
+                    .as_mut_ptr()
+                };
+            } else {
+                present = false;
+                break;
+            }
+            i += 1;
+        }
+        use PageTableFlags::*;
+        // If the tables exist, insert the new entry at its index
+        if present {
+            let frame = unsafe {
+                GLOBAL_FRAME_ALLOCATOR
+                    .alloc_next()
+                    .expect("Failed to allocate frame")
+            };
+            page_table_ptr[page_indexes[2]]
+                .set_addr(frame.start_address.as_u64(), PRESENT | WRITABLE | HUGE_PAGE);
+            Page::from_start_address(addr)
+        } else {
+            todo!("Create page tables")
+        }
+    }
+
+    /// Frees Page starting at given address
+    pub fn free_vaddr(&mut self, addr: VirtAddr) {
+        let page_indexes = [addr.p4_index(), addr.p3_index(), addr.p2_index()];
+        let mut page_table_ptr: &mut PageTable = unsafe { &mut *self.pml4.as_mut_ptr() };
+
+        for i in 0..2 {
+            if page_table_ptr[page_indexes[i]].is_present() {
+                page_table_ptr = unsafe {
+                    &mut *VirtAddr::new(
+                        page_table_ptr[page_indexes[i]].addr().as_u64()
+                            + self.physical_memory_offset,
+                    )
+                    .as_mut_ptr()
+                };
+            } else {
+                break;
+            }
+        }
+
+        if page_table_ptr[page_indexes[2]].is_present() {
+            let frame = Frame::from_start_address(page_table_ptr[page_indexes[2]].addr())
+                .expect("Frame not aligned");
+            unsafe { GLOBAL_FRAME_ALLOCATOR.free(frame) };
+            page_table_ptr[page_indexes[2]].set_unused();
+        }
     }
 }
 
@@ -88,9 +183,9 @@ pub fn init_pfa(multiboot_info: &'static MultibootInfo) {
         pfa.set_bit(0);
         pfa.set_bit(1);
 
-        GlobalFrameAllocator.bitmap = pfa.bitmap;
-        GlobalFrameAllocator.multiboot_info = pfa.multiboot_info;
-        GlobalFrameAllocator.total_pages = pfa.total_pages;
+        GLOBAL_FRAME_ALLOCATOR.bitmap = pfa.bitmap;
+        GLOBAL_FRAME_ALLOCATOR.multiboot_info = pfa.multiboot_info;
+        GLOBAL_FRAME_ALLOCATOR.total_pages = pfa.total_pages;
     }
 }
 
@@ -202,7 +297,7 @@ impl PageFrameAllocator {
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(C)]
 pub struct Page {
-    start_address: VirtAddr,
+    pub start_address: VirtAddr,
 }
 
 impl Page {
@@ -327,6 +422,12 @@ impl PageTableEntry {
     #[inline]
     pub fn set_flags(&mut self, flags: u64) {
         self.entry = self.addr().as_u64() | flags;
+    }
+
+    /// Checks if entry is present
+    #[inline]
+    pub fn is_present(&self) -> bool {
+        self.flags() & PageTableFlags::PRESENT != 0
     }
 }
 

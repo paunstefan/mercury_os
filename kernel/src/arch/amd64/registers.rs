@@ -1,6 +1,6 @@
 use core::arch::asm;
 
-use super::{addressing::PhysAddr, paging::Frame};
+use super::addressing::PhysAddr;
 
 /// Page fault source address
 pub struct Cr2;

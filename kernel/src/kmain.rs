@@ -7,13 +7,17 @@
 #[macro_use]
 mod macros;
 
+extern crate alloc;
+
 // Achitecture-specific modules
 #[cfg(target_arch = "x86_64")]
 #[path = "arch/amd64/mod.rs"]
 pub mod arch;
 
 mod logging;
+mod mm;
 mod multiboot;
+mod sync;
 mod utils;
 
 use core::arch::asm;
@@ -21,8 +25,6 @@ use core::mem::size_of;
 use core::panic::PanicInfo;
 
 use multiboot::MultibootInfo;
-
-use crate::arch::addressing::{translate_virtual_address, VirtAddr};
 
 mod drivers;
 
@@ -39,9 +41,15 @@ pub fn panic_implementation(info: &PanicInfo) -> ! {
 #[no_mangle]
 pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     log!("Hello world! 1={}", 1);
+    // Needed stuff
     let mb_info = unsafe { multiboot::MultibootInfo::read(multiboot_info) };
 
     init_kernel(mb_info);
+    {
+        let allocator = arch::paging::PageAllocator::new(511, 510, arch::addressing::KERNEL_BASE);
+        mm::ALLOCATOR.lock().init(allocator, 1);
+    }
+    // End needed stuff
     unsafe {
         asm!("int3", options(nomem, nostack));
     }
@@ -63,7 +71,7 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
             }
         }
     }
-    let mb_info = unsafe { multiboot::MultibootInfo::read(multiboot_info) };
+    //let mb_info = unsafe { multiboot::MultibootInfo::read(multiboot_info) };
     // unsafe {
     //     // testing frame allocator
 
@@ -76,39 +84,44 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     //     log!("{:?}", f1);
     // };
 
-    {
-        //test page allocator
-        let mut allocator =
-            arch::paging::PageAllocator::new(511, 510, arch::addressing::KERNEL_BASE);
-        log!("{:?}", allocator);
-        let page1 = allocator.alloc_next_page();
-        log!(
-            "{:?} {:?}",
-            page1,
-            page1
-                .unwrap()
-                .start_address
-                .translate_address(arch::addressing::KERNEL_BASE)
-        );
-        let page2 = allocator.alloc_next_page();
-        log!(
-            "{:?} {:?}",
-            page2,
-            page2
-                .unwrap()
-                .start_address
-                .translate_address(arch::addressing::KERNEL_BASE)
-        );
-        allocator.free_vaddr(page1.unwrap().start_address);
-        let page = allocator.alloc_next_page();
-        log!(
-            "{:?} {:?}",
-            page,
-            page.unwrap()
-                .start_address
-                .translate_address(arch::addressing::KERNEL_BASE)
-        );
-    }
+    // {
+    //     //test page allocator
+
+    //     log!("{:?}", allocator);
+    //     let page1 = allocator.alloc_next_page();
+    //     log!(
+    //         "{:?} {:?}",
+    //         page1,
+    //         page1
+    //             .unwrap()
+    //             .start_address
+    //             .translate_address(arch::addressing::KERNEL_BASE)
+    //     );
+    //     let page2 = allocator.alloc_next_page();
+    //     log!(
+    //         "{:?} {:?}",
+    //         page2,
+    //         page2
+    //             .unwrap()
+    //             .start_address
+    //             .translate_address(arch::addressing::KERNEL_BASE)
+    //     );
+    //     allocator.free_vaddr(page1.unwrap().start_address);
+    //     let page = allocator.alloc_next_page();
+    //     log!(
+    //         "{:?} {:?}",
+    //         page,
+    //         page.unwrap()
+    //             .start_address
+    //             .translate_address(arch::addressing::KERNEL_BASE)
+    //     );
+    // }
+    let x = alloc::boxed::Box::new(41);
+    log!("{:?}", x);
+    let mut v = alloc::vec![0, 1, 2];
+    log!("{:?}", v);
+    v.push(42);
+    log!("{:?}", v);
 
     // {
     //     // testing address translation

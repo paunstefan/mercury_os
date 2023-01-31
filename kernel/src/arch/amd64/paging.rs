@@ -14,6 +14,7 @@ extern "C" {
     fn kernel_end();
 }
 
+// TODO: add mutex
 pub static mut GLOBAL_FRAME_ALLOCATOR: PageFrameAllocator = PageFrameAllocator::new();
 
 /// I use 2MB pages

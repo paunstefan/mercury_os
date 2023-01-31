@@ -63,7 +63,7 @@ endif
 # Compile rust kernel object
 $(OBJDIR)kernel.a: PHONY Makefile
 	@mkdir -p $(dir $@)
-	cd kernel; RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) build -Z build-std=core --target=$(TARGETSPEC) --release
+	cd kernel; RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) build -Z build-std=core,alloc --target=$(TARGETSPEC) --release
 	@cp kernel/target/target/release/libkernel.a $@
 
 # Compile architecture's assembly stub

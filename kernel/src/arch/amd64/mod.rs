@@ -12,3 +12,5 @@ pub mod gdt;
 pub mod paging;
 
 pub mod addressing;
+
+pub mod pic;

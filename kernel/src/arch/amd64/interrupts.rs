@@ -2,7 +2,10 @@
 use crate::logging;
 use core::{arch::asm, mem::size_of};
 
-use super::addressing::VirtAddr;
+use super::{
+    addressing::VirtAddr,
+    registers::{rflags_values, Rflags},
+};
 
 static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
 
@@ -14,7 +17,24 @@ pub fn init_idt() {
         IDT.double_fault.set_handler_fn(double_fault_handler as u64);
         IDT.double_fault.options.set_IST(1);
         IDT.page_fault.set_handler_fn(page_fault_handler as u64);
+        IDT.interrupts[InterruptIndex::Timer.IRQ_index()]
+            .set_handler_fn(timer_interrupt_handler as u64);
         IDT.load();
+    }
+}
+
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    use super::pic::Timer::COUNT_DOWN;
+    unsafe {
+        let volatile = &mut COUNT_DOWN as *mut u64;
+        let count = core::ptr::read_volatile(volatile);
+        if count > 0 {
+            core::ptr::write_volatile(volatile, count - 1);
+        }
+
+        crate::arch::pic::PICS
+            .lock()
+            .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
     }
 }
 
@@ -276,5 +296,91 @@ impl InterruptDescriptorTable {
             limit: (size_of::<Self>() - 1) as u16,
         };
         asm!("lidt [{}]", in(reg) &idtr, options(readonly, nostack, preserves_flags))
+    }
+}
+
+// Utility functions
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum InterruptIndex {
+    Timer = super::pic::PIC_1_OFFSET,
+}
+
+impl InterruptIndex {
+    pub fn as_u8(self) -> u8 {
+        self as u8
+    }
+
+    pub fn as_usize(self) -> usize {
+        usize::from(self.as_u8())
+    }
+
+    pub fn IRQ_index(self) -> usize {
+        self.as_usize() - 32
+    }
+}
+
+/// Returns whether interrupts are enabled.
+#[inline]
+pub fn are_enabled() -> bool {
+    Rflags::read_raw() & rflags_values::INTERRUPT_FLAG != 0
+}
+
+/// Enable interrupts.
+///
+/// This is a wrapper around the `sti` instruction.
+#[inline]
+pub fn enable() {
+    unsafe {
+        asm!("sti", options(nomem, nostack));
+    }
+}
+
+/// Disable interrupts.
+///
+/// This is a wrapper around the `cli` instruction.
+#[inline]
+pub fn disable() {
+    unsafe {
+        asm!("cli", options(nomem, nostack));
+    }
+}
+
+/// Run a closure with disabled interrupts.
+///
+/// Run the given closure, disabling interrupts before running it (if they aren't already disabled).
+/// Afterwards, interrupts are enabling again if they were enabled before.
+///
+/// If you have other `enable` and `disable` calls _within_ the closure, things may not work as expected.
+#[inline]
+pub fn free<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    // true if the interrupt flag is set (i.e. interrupts are enabled)
+    let saved_intpt_flag = are_enabled();
+
+    // if interrupts are enabled, disable them for now
+    if saved_intpt_flag {
+        disable();
+    }
+
+    // do `f` while interrupts are disabled
+    let ret = f();
+
+    // re-enable interrupts if they were previously enabled
+    if saved_intpt_flag {
+        enable();
+    }
+
+    // return the result of `f` to the caller
+    ret
+}
+
+/// Halts the CPU until the next interrupt arrives.
+#[inline]
+pub fn hlt() {
+    unsafe {
+        asm!("hlt", options(nomem, nostack, preserves_flags));
     }
 }

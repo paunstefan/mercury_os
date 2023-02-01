@@ -38,6 +38,12 @@ pub fn panic_implementation(info: &PanicInfo) -> ! {
     loop {}
 }
 
+pub fn hlt_loop() -> ! {
+    loop {
+        arch::interrupts::hlt();
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     log!("Hello world! 1={}", 1);
@@ -142,9 +148,12 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     // unsafe {
     //     *(0xdeadbeef as *mut u64) = 42;
     // };
+    log!("Sleeping for 5 seconds...");
+    arch::pic::Timer::sleep(1000);
+    log!("Good sleep");
 
     log!("Did not crash (yet)");
-    loop {}
+    hlt_loop()
 }
 
 fn init_kernel(multiboot: &'static MultibootInfo) {
@@ -153,4 +162,9 @@ fn init_kernel(multiboot: &'static MultibootInfo) {
     arch::interrupts::init_idt();
     log!("Initialized IDT");
     arch::paging::init_pfa(multiboot);
+    log!("Initialized PageFrameAllocator");
+    unsafe { arch::pic::PICS.lock().initialize() };
+    arch::pic::Timer::init_timer(1000); // 1 interrupt per ms
+    log!("Initialized PIC and Timer");
+    arch::interrupts::enable();
 }

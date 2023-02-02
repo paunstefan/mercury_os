@@ -14,19 +14,18 @@ extern crate alloc;
 #[path = "arch/amd64/mod.rs"]
 pub mod arch;
 
+mod drivers;
+mod filesystem;
 mod logging;
 mod mm;
 mod multiboot;
 mod sync;
 mod utils;
 
-use core::arch::asm;
 use core::mem::size_of;
 use core::panic::PanicInfo;
 
 use multiboot::MultibootInfo;
-
-mod drivers;
 
 // TODO IMPORTANT: check unsafe usage
 
@@ -54,9 +53,6 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
         mm::ALLOCATOR.lock().init(allocator, 1);
     }
     // End needed stuff
-    unsafe {
-        asm!("int3", options(nomem, nostack));
-    }
 
     {
         log!("multiboot_magic: 0x{:x}", multiboot_magic);

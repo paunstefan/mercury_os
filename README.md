@@ -41,6 +41,17 @@ The Makefile contains a `run` command that starts QEMU with the following argume
 qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio -display none
 ```
 
+## Progress
+
+* [x] Long mode
+* [x] Serial output
+* [x] Serial output
+* [x] Memory management
+* [ ] Filesystem
+* [ ] Processes
+* [ ] User space
+
+
 ## Organization
 
 - Kernel code is placed in the `kernel` Rust crate, which contains the following:

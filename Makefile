@@ -4,12 +4,12 @@ ARCH ?= amd64
 ifeq ($(ARCH),amd64)
     TRIPLE ?= x86_64-elf-
 	UTILS_DIR ?= x86_64_binutils
-else ifeq ($(ARCH),x86)
-    TRIPLE ?= i686-elf-
 else
     $(error Unknown architecture $(ARCH))
 endif
 
+# Dev container runner
+RUNNER = podman
 
 # Toolchain commands (can be overridden)
 CARGO ?= cargo
@@ -87,7 +87,7 @@ rundebug:
 	qemu-system-x86_64 -s -S -kernel kernel.amd64.bin -serial stdio -display none
 
 docker:
-	podman run --rm -it --entrypoint tmux --name mercury_dev -v  "$(shell pwd)":/usr/src/mercury_os/ mercuryos/dev
+	$(RUNNER) run --rm -it --entrypoint tmux --name mercury_dev -v  "$(shell pwd)":/usr/src/mercury_os/ mercuryos/dev
 
 iso: $(BIN)
 	genisoimage -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -A os -input-charset utf8 -quiet -boot-info-table -o os.iso iso

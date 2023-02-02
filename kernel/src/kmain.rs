@@ -28,8 +28,6 @@ use multiboot::MultibootInfo;
 
 mod drivers;
 
-// TODO: make register reading/writing functions
-// TODO: use new VirtAddr and PhysAddr abstractions
 // TODO IMPORTANT: check unsafe usage
 
 #[panic_handler]
@@ -148,7 +146,7 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     // unsafe {
     //     *(0xdeadbeef as *mut u64) = 42;
     // };
-    log!("Sleeping for 5 seconds...");
+    log!("Sleeping for 1 seconds...");
     arch::pic::Timer::sleep(1000);
     log!("Good sleep");
 

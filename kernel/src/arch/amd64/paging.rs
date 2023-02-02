@@ -42,32 +42,65 @@ impl PageAllocator {
         }
     }
 
-    /// Create virtual address mapping for the next free page
-    pub fn alloc_next_page(&mut self) -> Option<Page> {
+    /// Create virtual address mapping for the next n free pages
+    pub fn alloc_next_page(&mut self, no_pages: usize) -> Option<Page> {
         let mut page_table_ptr: &PageTable = unsafe { &*self.pml4.as_mut_ptr() };
         let page_indexes = [self.current_page_indexes.0, self.current_page_indexes.1];
 
+        // Go to the last level page
         for i in page_indexes {
             page_table_ptr = unsafe {
                 &*VirtAddr::new(page_table_ptr[i].addr().as_u64() + self.physical_memory_offset)
                     .as_mut_ptr()
             };
         }
-        // TODO: add option to alloc multiple pages
+
+        // Find enough consecutive free pages
         let mut p2_index = None;
-        for (i, p) in page_table_ptr.iter().enumerate() {
-            if p.is_unused() {
+        for i in 0..page_table_ptr.entries.len() {
+            let mut unused_space = true;
+            for j in 0..no_pages {
+                if !page_table_ptr.entries[i + j].is_unused() {
+                    unused_space = false;
+                    break;
+                }
+            }
+            if unused_space {
                 p2_index = Some(i);
                 break;
             }
         }
 
         if let Some(p2_index) = p2_index {
-            self.alloc_vaddr(VirtAddr::from_table_indexes(
+            // First one, which will be returned
+            let ret = self.alloc_vaddr(VirtAddr::from_table_indexes(
                 self.current_page_indexes.0,
                 self.current_page_indexes.1,
                 p2_index,
-            ))
+            ));
+
+            // The rest
+            for i in 1..no_pages {
+                let additional_page = self.alloc_vaddr(VirtAddr::from_table_indexes(
+                    self.current_page_indexes.0,
+                    self.current_page_indexes.1,
+                    p2_index,
+                ));
+
+                // If allocation failed for any of them, deallocate all previous ones
+                if additional_page.is_none() {
+                    for j in 0..i {
+                        self.free_vaddr(VirtAddr::from_table_indexes(
+                            self.current_page_indexes.0,
+                            self.current_page_indexes.1,
+                            p2_index + j,
+                        ))
+                    }
+                    return None;
+                }
+            }
+
+            ret
         } else {
             // need to find another page table
             todo!("Find a new empty page table")
@@ -485,7 +518,7 @@ pub mod PageTableFlags {
 #[repr(C)]
 #[derive(Debug)]
 pub struct PageTable {
-    entries: [PageTableEntry; ENTRY_COUNT],
+    pub entries: [PageTableEntry; ENTRY_COUNT],
 }
 
 impl PageTable {

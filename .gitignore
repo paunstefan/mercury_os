@@ -3,3 +3,4 @@
 kernel.*
 os.iso
 iso/boot/*.bin
+iso/modules/*

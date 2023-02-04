@@ -146,6 +146,7 @@ A virtual address is split as following:
 The memory management system has 3 parts:
 
 - Frame allocator
+  
 It reserves physical memory in RAM using a bitmap allocator. Each page is represented as a bit that is 0 if unused and 1 if used.
 This bitmap is placed 8 bytes after KERNEL_END. When a request for memory is made, it searches for the first free page and returns
 its address to the caller. On free, the bit is just set to 0.
@@ -153,11 +154,13 @@ its address to the caller. On free, the bit is just set to 0.
 The frame allocator is a global structure shared by everyone.
 
 - Page allocator
+
 It allocates virtual memory that is mapped to a physical page previously allocated by the frame allocator. When a process
 requests memory, the page allocator finds space in a page table and adds a mapping to a physical address.
 
 One page allocator should exist per process, as each process has its own page tables.
 
 - Heap allocator
+
 The heap allocator is the one that does what `malloc` and `free` usually do. It receives requests for a certain amount of memory
 and returns an address where that memory is reserved and mapped.

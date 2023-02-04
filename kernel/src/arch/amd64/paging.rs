@@ -201,7 +201,11 @@ pub fn init_pfa(multiboot_info: &'static MultibootInfo) {
         // I reserve 1 more if case the total pages are not divisible by 8
         let bitmap_len = ((total_pages / 8) + 1) as isize;
 
-        let bitmap: *mut u8 = (kernel_end as usize + 8) as _;
+        let initrd_end = *((multiboot_info.mods_addr as u64 + KERNEL_BASE) as *const u32).add(1)
+            as u64
+            + KERNEL_BASE;
+
+        let bitmap: *mut u8 = (initrd_end as usize + 8) as _;
 
         for i in 0..bitmap_len {
             *(bitmap.offset(i)) = 0;

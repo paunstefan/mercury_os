@@ -46,6 +46,7 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     log!("Hello world! 1={}", 1);
     // Needed stuff
     let mb_info = unsafe { multiboot::MultibootInfo::read(multiboot_info) };
+    log!("{:?}", mb_info);
 
     init_kernel(mb_info);
     {
@@ -157,6 +158,7 @@ fn init_kernel(multiboot: &'static MultibootInfo) {
     log!("Initialized IDT");
     arch::paging::init_pfa(multiboot);
     log!("Initialized PageFrameAllocator");
+    filesystem::initialize_fs(multiboot);
     unsafe { arch::pic::PICS.lock().initialize() };
     arch::pic::Timer::init_timer(1000); // 1 interrupt per ms
     log!("Initialized PIC and Timer");

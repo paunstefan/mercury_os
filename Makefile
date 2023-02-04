@@ -78,6 +78,7 @@ $(OBJDIR)start.o: kernel/src/arch/$(ARCH)/start.S Makefile
 clean:
 	$(RM) -rf $(BIN) $(BIN).elf64 $(BIN).dsm $(OBJDIR)
 	$(RM) -rf iso/boot/$(BIN)
+	$(RM) -rf iso/modules/*
 	$(RM) -rf os.iso
 
 run:
@@ -90,6 +91,7 @@ docker:
 	$(RUNNER) run --rm -it --entrypoint tmux --name mercury_dev -v  "$(shell pwd)":/usr/src/mercury_os/ mercuryos/dev
 
 iso: $(BIN)
+	python3 utils/create_initrd.py
 	genisoimage -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -A os -input-charset utf8 -quiet -boot-info-table -o os.iso iso
 
 runiso:

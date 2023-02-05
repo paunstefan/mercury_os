@@ -84,7 +84,7 @@ impl PageAllocator {
                 let additional_page = self.alloc_vaddr(VirtAddr::from_table_indexes(
                     self.current_page_indexes.0,
                     self.current_page_indexes.1,
-                    p2_index,
+                    p2_index + i,
                 ));
 
                 // If allocation failed for any of them, deallocate all previous ones
@@ -142,7 +142,10 @@ impl PageAllocator {
             };
             page_table_ptr[page_indexes[2]]
                 .set_addr(frame.start_address.as_u64(), PRESENT | WRITABLE | HUGE_PAGE);
-            Page::from_start_address(addr)
+            let ret = Page::from_start_address(addr);
+            log!("{:?}", ret);
+
+            ret
         } else {
             todo!("Create page tables")
         }

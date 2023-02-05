@@ -53,6 +53,8 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
         let allocator = arch::paging::PageAllocator::new(511, 510, arch::addressing::KERNEL_BASE);
         mm::ALLOCATOR.lock().init(allocator, 1);
     }
+    filesystem::initialize_fs(mb_info);
+
     // End needed stuff
 
     {
@@ -147,6 +149,20 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     arch::pic::Timer::sleep(1000);
     log!("Good sleep");
 
+    let fs_root = unsafe { &**filesystem::FS_ROOT.as_mut().unwrap() };
+    for f in fs_root.readdir().unwrap() {
+        log!("{:?}", f);
+        if let Some(node) = fs_root.finddir(&f.name) {
+            let nod = unsafe { &*node };
+            if nod.kind == filesystem::Type::File {
+                let mut buf = [0u8; 64];
+                nod.read(0, nod.size, &mut buf);
+                log!("Contents: {:?}", buf);
+            }
+        }
+    }
+    //filesystem::fopen("/file1.txt");
+
     log!("Did not crash (yet)");
     hlt_loop()
 }
@@ -158,7 +174,6 @@ fn init_kernel(multiboot: &'static MultibootInfo) {
     log!("Initialized IDT");
     arch::paging::init_pfa(multiboot);
     log!("Initialized PageFrameAllocator");
-    filesystem::initialize_fs(multiboot);
     unsafe { arch::pic::PICS.lock().initialize() };
     arch::pic::Timer::init_timer(1000); // 1 interrupt per ms
     log!("Initialized PIC and Timer");

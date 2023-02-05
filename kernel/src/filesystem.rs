@@ -3,7 +3,7 @@ use crate::logging;
 use crate::{arch::addressing::KERNEL_BASE, multiboot::MultibootInfo};
 use alloc::{string::String, vec::Vec};
 
-static mut FS_root: Option<*mut VFS_Node> = None;
+pub static mut FS_ROOT: Option<*const VFS_Node> = None;
 
 pub type Inode = usize;
 
@@ -33,6 +33,7 @@ pub struct VFS_Node {
     pub mount_point: Option<*mut VFS_Node>,
 }
 
+#[derive(Debug)]
 pub struct DirEnt {
     pub name: String,
     pub inode: Inode,
@@ -68,18 +69,24 @@ impl VFS_Node {
     }
 
     /// Returns FS indexes of nodes inside the directory
-    pub fn finddir(&self) -> Option<Vec<DirEnt>> {
+    pub fn finddir(&self, name: &str) -> Option<*mut VFS_Node> {
         let mut which = self;
         // Passthrough mounted directory if needed
         if let Some(mounted) = self.mount_point {
             which = unsafe { &*mounted };
         }
 
-        if let Some(finddir) = which.readdir {
-            return finddir(self);
+        if let Some(finddir) = which.finddir {
+            return finddir(self, name);
         }
         None
     }
+}
+
+pub fn fopen(pathname: &str) -> Option<&mut VFS_Node> {
+    // Split uses memcmp which does not exist
+    // manual way allocates over 2MB of memory for some reason
+    todo!()
 }
 
 pub fn initialize_fs(mb_info: &'static MultibootInfo) {
@@ -100,6 +107,6 @@ pub fn initialize_fs(mb_info: &'static MultibootInfo) {
     let root = initialize_initrd(initrd_location as u64, size as usize);
 
     unsafe {
-        FS_root = Some(root);
+        FS_ROOT = Some(root);
     }
 }

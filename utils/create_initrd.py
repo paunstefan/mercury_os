@@ -25,8 +25,9 @@ data += header
 offset = 1 + file_header_size * no_files
 for i in range(len(files)):
     name = b"file" + bytes(str(i), 'utf-8') + b".txt"
-    data += struct.pack(initrd_file_fmt, name, len(f1_content), offset)
-    offset += len(f1_content)
+    data += struct.pack(initrd_file_fmt, name, len(files[i]), offset)
+    print(offset)
+    offset += len(files[i])
 
 for i in range(len(files)):
     data += files[i]

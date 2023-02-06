@@ -28,7 +28,8 @@ pub fn align_up(address: u64, alignment: u64) -> u64 {
 }
 
 /// Default string compare uses `memcmp`, which seems to be undefined in compiler_builtins
-pub fn string_cmp(a: &str, b: &str) -> bool {
+/// FIXED, but will keep it here anyway
+pub fn _string_cmp(a: &str, b: &str) -> bool {
     if a.len() != b.len() {
         return false;
     }

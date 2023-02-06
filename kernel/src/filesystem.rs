@@ -7,6 +7,7 @@ pub static mut FS_ROOT: Option<*const VFS_Node> = None;
 
 pub type Inode = usize;
 
+// Definitions for the node function pointer types
 type read_fs = fn(&VFS_Node, usize, usize, &mut [u8]) -> Option<usize>;
 type write_fs = fn(&mut VFS_Node, usize, usize, &[u8]) -> Option<usize>;
 type readdir_fs = fn(&VFS_Node) -> Option<Vec<DirEnt>>;
@@ -21,6 +22,8 @@ pub enum Type {
     Mountpoint,
 }
 
+/// Virtual Filesystem node type.
+/// Any filesystem must map its files to this structure
 pub struct VFS_Node {
     pub name: String,
     pub kind: Type,
@@ -33,6 +36,7 @@ pub struct VFS_Node {
     pub mount_point: Option<*mut VFS_Node>,
 }
 
+/// Structure returned by the readdir() function
 #[derive(Debug)]
 pub struct DirEnt {
     pub name: String,
@@ -40,6 +44,7 @@ pub struct DirEnt {
 }
 
 impl VFS_Node {
+    /// File read
     pub fn read(&self, offset: usize, size: usize, buffer: &mut [u8]) -> Option<usize> {
         if let Some(readfn) = self.read {
             return readfn(self, offset, size, buffer);
@@ -47,6 +52,7 @@ impl VFS_Node {
         None
     }
 
+    /// File write
     pub fn write(&mut self, offset: usize, size: usize, buffer: &[u8]) -> Option<usize> {
         if let Some(writefn) = self.write {
             return writefn(self, offset, size, buffer);
@@ -54,7 +60,8 @@ impl VFS_Node {
         None
     }
 
-    /// Returns FS indexes of nodes inside the directory
+    /// Returns FS indexes of nodes inside the directory.
+    /// Passes request to mounted directory if it is a mountpoint
     pub fn readdir(&self) -> Option<Vec<DirEnt>> {
         let mut which = self;
         // Passthrough mounted directory if needed
@@ -69,6 +76,7 @@ impl VFS_Node {
     }
 
     /// Returns FS indexes of nodes inside the directory
+    /// Passes request to mounted directory if it is a mountpoint
     pub fn finddir(&self, name: &str) -> Option<*mut VFS_Node> {
         let mut which = self;
         // Passthrough mounted directory if needed
@@ -83,10 +91,27 @@ impl VFS_Node {
     }
 }
 
+/// Returns file node given its path in the FS
 pub fn fopen(pathname: &str) -> Option<&mut VFS_Node> {
-    // Split uses memcmp which does not exist
-    // manual way allocates over 2MB of memory for some reason
-    todo!()
+    let parts: Vec<&str> = pathname.split('/').collect();
+
+    // Only supporting absolute paths for now
+    if parts.len() < 2 || !parts[0].is_empty() {
+        return None;
+    }
+
+    let mut current_dir = unsafe { &**FS_ROOT.as_mut().unwrap() };
+
+    for i in 1..parts.len() {
+        // Reached file
+        if i == parts.len() - 1 {
+            let file = current_dir.finddir(parts[i])?;
+            return unsafe { Some(&mut *file) };
+        }
+        current_dir = unsafe { &*(current_dir.finddir(parts[i])?) };
+    }
+
+    None
 }
 
 pub fn initialize_fs(mb_info: &'static MultibootInfo) {

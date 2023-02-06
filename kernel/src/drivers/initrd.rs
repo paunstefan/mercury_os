@@ -8,18 +8,20 @@ use alloc::{
 use crate::{
     arch::addressing::KERNEL_BASE,
     filesystem::{DirEnt, Type, VFS_Node},
-    utils::string_cmp,
 };
 
 use crate::logging;
 
-static mut init_rd_fs: Option<InitRD> = None;
+static mut INIT_RD_FS: Option<InitRD> = None;
 
+/// Filesystem header with the number of files
 #[derive(Debug)]
 pub struct Header {
     pub nfiles: u8,
 }
 
+/// InitRD file header.
+/// Contains the name, size and location in the FS
 #[derive(Debug, Clone)]
 #[repr(C, packed(8))]
 pub struct FileHeader {
@@ -29,6 +31,8 @@ pub struct FileHeader {
 }
 
 impl FileHeader {
+    /// The name in the structure is a null terminated array of bytes,
+    /// this function converets it to a Rust string
     pub fn filename(&self) -> String {
         self.name
             .iter()
@@ -38,6 +42,7 @@ impl FileHeader {
     }
 }
 
+/// Initial RAMDisk filesystem structure
 pub struct InitRD {
     address: *const u8,
     size: usize,
@@ -114,10 +119,10 @@ pub fn initialize_initrd(fs_location: u64, size: usize) -> *const VFS_Node {
     };
 
     unsafe {
-        init_rd_fs = Some(initrd_struct);
+        INIT_RD_FS = Some(initrd_struct);
     }
 
-    unsafe { &init_rd_fs.as_ref().unwrap().root as *const VFS_Node }
+    unsafe { &INIT_RD_FS.as_ref().unwrap().root as *const VFS_Node }
 }
 
 pub fn initrd_read(
@@ -127,7 +132,7 @@ pub fn initrd_read(
     buffer: &mut [u8],
 ) -> Option<usize> {
     if node.kind == Type::File {
-        let fs = unsafe { &init_rd_fs.as_ref().unwrap() };
+        let fs = unsafe { &INIT_RD_FS.as_ref().unwrap() };
         let header = &fs.files[node.inode];
         let location = unsafe { slice::from_raw_parts(fs.address, fs.size) };
 
@@ -149,7 +154,7 @@ pub fn readdir(node: &VFS_Node) -> Option<Vec<DirEnt>> {
         return None;
     }
     let mut ret = Vec::new();
-    let fs = unsafe { &init_rd_fs.as_ref().unwrap() };
+    let fs = unsafe { &INIT_RD_FS.as_ref().unwrap() };
 
     ret.push(DirEnt {
         name: "dev".to_string(),
@@ -170,17 +175,14 @@ pub fn finddir(node: &VFS_Node, name: &str) -> Option<*mut VFS_Node> {
     if node.kind != Type::Dir {
         return None;
     }
-    let fs = unsafe { &mut init_rd_fs.as_mut().unwrap() };
+    let fs = unsafe { &mut INIT_RD_FS.as_mut().unwrap() };
 
     if name == "dev" {
         return Some(&mut fs.dev_dir);
     }
 
-    for node in &mut fs.file_nodes {
-        if string_cmp(&node.name, name) {
-            return Some(node as *mut VFS_Node);
-        }
-    }
-
-    None
+    fs.file_nodes
+        .iter_mut()
+        .find(|node| node.name == name)
+        .map(|node| node as *mut VFS_Node)
 }

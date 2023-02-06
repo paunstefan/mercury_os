@@ -164,3 +164,9 @@ One page allocator should exist per process, as each process has its own page ta
 
 The heap allocator is the one that does what `malloc` and `free` usually do. It receives requests for a certain amount of memory
 and returns an address where that memory is reserved and mapped.
+
+## Filesystem
+
+For reading and writing files, at the moment MercuryOS uses a simple RAMDisk filesystem. It is a single file with a header
+containing the number of files, each file's name and location, followed by the file's contents. It is loaded into memory
+as a GRUB module. 

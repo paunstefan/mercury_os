@@ -19,18 +19,24 @@ docker build -t mercuryos/dev .
 docker run --rm -it --entrypoint tmux --name mercury_dev -v  "$(pwd)":/usr/src/mercury_os/ mercuryos/dev
 ```
 
-The Makefile also contains a `docker` command to start the container. (It uses Podman, which is a drop-in replacement for Docker)
+The Makefile also contains a `docker` command to start the container. By default it uses Podman, 
+which is a drop-in replacement for Docker, but you can change it by modifying the `RUNNER` variable
+in the Makefile.
 
 ### Build process
 
 After installing the dependencies or starting the Docker container, you can run `make` to build the OS binary.
 The OS contains the Multiboot header, so it can be booted using any Multiboot compatible bootloader.
 
-3 files will be created in the root of the project: 
+If you want to fully use all OS features, you need the InitRD filesystem, for this you need an ISO with
+GRUB included. Run `make iso` to build it.
+
+4 files will be created in the root of the project: 
 
 * `kernel.amd64.bin.elf64` - The initial 64bit binary, with debugging symbols (can be used with GDB)
 * `kernel.amd64.bin` - Bootable OS binary, without debugging symbols.
 * `kernel.amd64.bin.dsm` - Dissassembly of the OS binary.
+* `os.iso` - OS image with GRUB and InitRD included
 
 ## Running
 
@@ -41,15 +47,24 @@ The Makefile contains a `run` command that starts QEMU with the following argume
 qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio -display none
 ```
 
+As previously mentioned, the full OS needs GRUB with a module containing the filesystem. After you built it,
+it can be run using `make runiso` which will run the following command:
+
+```bash
+qemu-system-x86_64  -cdrom os.iso -serial stdio -display none
+```
+
 ## Progress
 
 * [x] Long mode
 * [x] Serial output
-* [x] Serial output
+* [x] Interrupts
+* [x] Timer peripheral
 * [x] Memory management
-* [ ] Filesystem
+* [x] Filesystem
 * [ ] Processes
 * [ ] User space
+* [ ] Graphics
 
 
 ## Organization

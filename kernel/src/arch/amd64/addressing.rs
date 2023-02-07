@@ -17,7 +17,7 @@ pub fn translate_virtual_address(addr: VirtAddr) -> Option<PhysAddr> {
 /// are called “canonical”. This type guarantees that it always represents a canonical address.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct VirtAddr(u64);
+pub struct VirtAddr(pub u64);
 
 impl VirtAddr {
     pub fn translate_address(&self, physical_memory_offset: u64) -> Option<PhysAddr> {
@@ -155,7 +155,7 @@ impl fmt::Debug for VirtAddr {
 /// to be zero. This type guarantees that it always represents a valid physical address.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
-pub struct PhysAddr(u64);
+pub struct PhysAddr(pub u64);
 
 impl fmt::Debug for PhysAddr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

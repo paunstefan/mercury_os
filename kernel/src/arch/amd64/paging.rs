@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 use super::addressing::{PhysAddr, VirtAddr, KERNEL_BASE};
 use crate::logging;
 use crate::multiboot::{MmapEntry, MultibootInfo};
@@ -17,8 +19,15 @@ extern "C" {
 // TODO: add mutex
 pub static mut GLOBAL_FRAME_ALLOCATOR: PageFrameAllocator = PageFrameAllocator::new();
 
+static mut KERNEL_CR3: u64 = 0;
+
 /// I use 2MB pages
 pub const PAGE_SIZE: u64 = 2 * 1024 * 1024;
+
+enum PageTableInfo {
+    Kernel(u64),                     // physical_memory_offset
+    User([(VirtAddr, PhysAddr); 3]), // virtual and physical addresses of the page tables
+}
 
 /// The PageAllocator creates new page table entries to
 /// allocate virtual memory to the requesting process
@@ -27,18 +36,66 @@ pub struct PageAllocator {
     pml4: VirtAddr,
     current_page_indexes: (usize, usize),
     physical_memory_offset: u64,
+    user_pages_addresses: Option<[(VirtAddr, PhysAddr); 3]>,
 }
 
 impl PageAllocator {
-    pub fn new(p4: usize, p3: usize, physical_memory_offset: u64) -> Self {
+    /// Create a new kernel page allocator
+    pub fn new_kernel(p4: usize, p3: usize, physical_memory_offset: u64) -> Self {
         let (level_4_table_frame, _) = super::registers::Cr3::read();
 
-        let virt = VirtAddr::new(physical_memory_offset + level_4_table_frame.as_u64());
+        let kernel_cr3 = level_4_table_frame.as_u64();
+
+        let virt = VirtAddr::new(physical_memory_offset + kernel_cr3);
+
+        unsafe {
+            KERNEL_CR3 = kernel_cr3;
+        }
 
         PageAllocator {
             pml4: virt,
             current_page_indexes: (p4, p3),
             physical_memory_offset,
+            user_pages_addresses: None,
+        }
+    }
+
+    /// Create a new page allocator for a user process.
+    /// Should only be called after a kernel allocator is created and when
+    /// using kernel pages.
+    pub unsafe fn new_user(physical_memory_offset: u64) -> Self {
+        use PageTableFlags::*;
+
+        let mut l4 = Box::new(PageTable::new());
+        let mut l3 = Box::new(PageTable::new());
+        let mut l2 = Box::new(PageTable::new());
+
+        // Link the last entry to the kernel memory space
+        (*l4)[511] =
+            unsafe { (&*((KERNEL_CR3 + physical_memory_offset) as *const PageTable))[511] };
+
+        let l2_virt = VirtAddr::new(Box::<PageTable>::into_raw(l2) as u64);
+        let l2_phys = l2_virt.translate_address(physical_memory_offset).unwrap();
+
+        (*l3)[0] = PageTableEntry::new();
+        (*l3)[0].set_addr(l2_phys.0, PRESENT | WRITABLE | USER_ACCESSIBLE);
+
+        let l3_virt = VirtAddr::new(Box::<PageTable>::into_raw(l3) as u64);
+        let l3_phys = l3_virt.translate_address(physical_memory_offset).unwrap();
+
+        (*l4)[0] = PageTableEntry::new();
+        (*l4)[0].set_addr(l3_phys.0, PRESENT | WRITABLE | USER_ACCESSIBLE);
+
+        let l4_virt = VirtAddr::new(Box::<PageTable>::into_raw(l4) as u64);
+        let l4_phys = l4_virt.translate_address(physical_memory_offset).unwrap();
+
+        let user_pages_addresses = [(l4_virt, l4_phys), (l3_virt, l3_phys), (l2_virt, l2_phys)];
+
+        PageAllocator {
+            pml4: l4_virt,
+            current_page_indexes: (0, 0),
+            physical_memory_offset,
+            user_pages_addresses: Some(user_pages_addresses),
         }
     }
 
@@ -48,11 +105,15 @@ impl PageAllocator {
         let page_indexes = [self.current_page_indexes.0, self.current_page_indexes.1];
 
         // Go to the last level page
-        for i in page_indexes {
-            page_table_ptr = unsafe {
-                &*VirtAddr::new(page_table_ptr[i].addr().as_u64() + self.physical_memory_offset)
-                    .as_mut_ptr()
-            };
+        if self.user_pages_addresses.is_none() {
+            for i in page_indexes {
+                page_table_ptr = unsafe {
+                    &*VirtAddr::new(page_table_ptr[i].addr().as_u64() + self.physical_memory_offset)
+                        .as_mut_ptr()
+                };
+            }
+        } else {
+            page_table_ptr = unsafe { &*self.user_pages_addresses.unwrap()[2].0.as_ptr() };
         }
 
         // Find enough consecutive free pages
@@ -113,24 +174,28 @@ impl PageAllocator {
         let mut present = true;
         let mut page_table_ptr: &mut PageTable = unsafe { &mut *self.pml4.as_mut_ptr() };
         let mut i = 0;
-        // Check if the page tables corresponding to the addr exist
-        loop {
-            if i == 2 {
-                break;
+        if self.user_pages_addresses.is_none() {
+            // Check if the page tables corresponding to the addr exist
+            loop {
+                if i == 2 {
+                    break;
+                }
+                if page_table_ptr[page_indexes[i]].is_present() {
+                    page_table_ptr = unsafe {
+                        &mut *VirtAddr::new(
+                            page_table_ptr[page_indexes[i]].addr().as_u64()
+                                + self.physical_memory_offset,
+                        )
+                        .as_mut_ptr()
+                    };
+                } else {
+                    present = false;
+                    break;
+                }
+                i += 1;
             }
-            if page_table_ptr[page_indexes[i]].is_present() {
-                page_table_ptr = unsafe {
-                    &mut *VirtAddr::new(
-                        page_table_ptr[page_indexes[i]].addr().as_u64()
-                            + self.physical_memory_offset,
-                    )
-                    .as_mut_ptr()
-                };
-            } else {
-                present = false;
-                break;
-            }
-            i += 1;
+        } else {
+            page_table_ptr = unsafe { &mut *self.user_pages_addresses.unwrap()[2].0.as_mut_ptr() };
         }
         use PageTableFlags::*;
         // If the tables exist, insert the new entry at its index
@@ -156,18 +221,22 @@ impl PageAllocator {
         let page_indexes = [addr.p4_index(), addr.p3_index(), addr.p2_index()];
         let mut page_table_ptr: &mut PageTable = unsafe { &mut *self.pml4.as_mut_ptr() };
 
-        for i in 0..2 {
-            if page_table_ptr[page_indexes[i]].is_present() {
-                page_table_ptr = unsafe {
-                    &mut *VirtAddr::new(
-                        page_table_ptr[page_indexes[i]].addr().as_u64()
-                            + self.physical_memory_offset,
-                    )
-                    .as_mut_ptr()
-                };
-            } else {
-                break;
+        if self.user_pages_addresses.is_none() {
+            for i in 0..2 {
+                if page_table_ptr[page_indexes[i]].is_present() {
+                    page_table_ptr = unsafe {
+                        &mut *VirtAddr::new(
+                            page_table_ptr[page_indexes[i]].addr().as_u64()
+                                + self.physical_memory_offset,
+                        )
+                        .as_mut_ptr()
+                    };
+                } else {
+                    break;
+                }
             }
+        } else {
+            page_table_ptr = unsafe { &mut *self.user_pages_addresses.unwrap()[2].0.as_mut_ptr() };
         }
 
         if page_table_ptr[page_indexes[2]].is_present() {
@@ -416,7 +485,7 @@ pub unsafe fn active_level_4_table(physical_memory_offset: u64) -> &'static mut 
 const ENTRY_COUNT: usize = 512;
 
 /// A 64-bit page table entry.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 #[repr(transparent)]
 pub struct PageTableEntry {
     entry: u64,

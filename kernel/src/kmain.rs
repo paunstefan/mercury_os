@@ -20,6 +20,7 @@ mod logging;
 mod mm;
 mod multiboot;
 mod sync;
+mod task;
 mod utils;
 
 use core::mem::size_of;
@@ -50,7 +51,8 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
 
     init_kernel(mb_info);
     {
-        let allocator = arch::paging::PageAllocator::new(511, 510, arch::addressing::KERNEL_BASE);
+        let allocator =
+            arch::paging::PageAllocator::new_kernel(511, 510, arch::addressing::KERNEL_BASE);
         mm::ALLOCATOR.lock().init(allocator, 1);
     }
     filesystem::initialize_fs(mb_info);
@@ -78,12 +80,12 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     // unsafe {
     //     // testing frame allocator
 
-    //     let f1 = arch::paging::GlobalFrameAllocator.alloc_next();
+    //     let f1 = arch::paging::GLOBAL_FRAME_ALLOCATOR.alloc_next();
     //     log!("{:?}", f1);
-    //     let f1 = arch::paging::GlobalFrameAllocator.alloc_next();
+    //     let f1 = arch::paging::GLOBAL_FRAME_ALLOCATOR.alloc_next();
     //     log!("{:?}", f1);
-    //     arch::paging::GlobalFrameAllocator.free(f1.unwrap());
-    //     let f1 = arch::paging::GlobalFrameAllocator.alloc_next();
+    //     arch::paging::GLOBAL_FRAME_ALLOCATOR.free(f1.unwrap());
+    //     let f1 = arch::paging::GLOBAL_FRAME_ALLOCATOR.alloc_next();
     //     log!("{:?}", f1);
     // };
 

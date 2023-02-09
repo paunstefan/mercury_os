@@ -34,6 +34,21 @@ impl Cr3 {
         let addr = PhysAddr::new(addr);
         (addr, (value & 0xFFF) as u16)
     }
+
+    /// Write a new P4 table address into the CR3 register.
+    ///
+    /// ## Safety
+    ///
+    /// Changing the level 4 page table is unsafe, because it's possible to violate memory safety by
+    /// changing the page mapping.
+    #[inline]
+    unsafe fn write_raw(frame: PhysAddr, val: u16) {
+        let value = frame.as_u64() | val as u64;
+
+        unsafe {
+            asm!("mov cr3, {}", in(reg) value, options(nostack, preserves_flags));
+        }
+    }
 }
 
 pub struct Rflags;

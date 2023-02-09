@@ -161,6 +161,12 @@ memcpy:
 	rep movsb
 	ret
 
+.section .text.read_rip
+.globl read_rip
+read_rip:
+	pop rax
+	jmp rax
+
 
 /* === Page-aligned data === */
 .section .padata
@@ -192,7 +198,7 @@ init_pd:
 		.quad 0
 	.endr 
 init_stack_base:
-	.rept 0x1000 * 4
+	.rept 0x1000 * 10
 		.byte 0
 	.endr
 init_stack:

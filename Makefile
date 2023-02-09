@@ -91,7 +91,7 @@ docker:
 	$(RUNNER) run --rm -it --entrypoint tmux --name mercury_dev -v  "$(shell pwd)":/usr/src/mercury_os/ mercuryos/dev
 
 iso: $(BIN)
-	python3 utils/create_initrd.py
+	python3 utils/create_initrd.py userspace/initrd
 	genisoimage -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -A os -input-charset utf8 -quiet -boot-info-table -o os.iso iso
 
 runiso:

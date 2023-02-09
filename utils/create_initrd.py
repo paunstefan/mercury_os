@@ -1,41 +1,43 @@
 import struct
+import sys
+import os
 
 initrd_header_fmt = 'B'
 initrd_file_fmt = '<64sQQ'
 file_header_size = struct.calcsize(initrd_file_fmt)
 
-no_files = 2;
 
-# f1
-f1_content = b"Hello from the initrd";
+def main():
+    if len(sys.argv) != 2:
+        sys.exit(f"Usage: {sys.argv[0]} [directory]")
 
-# f2
-f2_content = b"another file"
+    files = os.listdir(sys.argv[1])
+    paths = [sys.argv[1] + "/"  + p for p in files]
+    print(paths)
 
-files = [f1_content, f2_content]
+    no_files = len(files)
+    header = struct.pack(initrd_header_fmt, no_files)
 
-data = struct.pack(initrd_file_fmt, b"file1.txt", len(f1_content), 0)
+    data = b""
+    data += header
+    offset = 1 + file_header_size * no_files
 
-header = struct.pack(initrd_header_fmt, no_files)
+    for i in range(no_files):
+        file_size = os.path.getsize(paths[i])
+        print(file_size)
+        name = bytes(files[i], 'utf-8')
+        data += struct.pack(initrd_file_fmt, name, file_size, offset)
+        offset += file_size
 
-data = b""
+    for i in range(no_files):
+        infile = open(paths[i], "rb")
+        contents = infile.read()
+        data += contents
+        infile.close()
 
-data += header
 
-offset = 1 + file_header_size * no_files
-for i in range(len(files)):
-    name = b"file" + bytes(str(i), 'utf-8') + b".txt"
-    data += struct.pack(initrd_file_fmt, name, len(files[i]), offset)
-    print(offset)
-    offset += len(files[i])
+    with open("iso/modules/initrd", "wb") as f:
+        f.write(data)
 
-for i in range(len(files)):
-    data += files[i]
-
-print(f"size {len(data)}")
-print(data)
-
-# Writing to file
-with open("iso/modules/initrd", "wb") as f:
-    # Writing data to a file
-    f.write(data)
+if __name__ == "__main__":
+    main()

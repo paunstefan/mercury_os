@@ -163,7 +163,7 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
             }
         }
     }
-    let nod = filesystem::fopen("/file1.txt").unwrap();
+    let nod = filesystem::fopen("/test_program.bin").unwrap();
     if nod.kind == filesystem::Type::File {
         let mut buf = [0u8; 64];
         nod.read(0, nod.size, &mut buf);

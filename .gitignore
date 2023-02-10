@@ -5,4 +5,4 @@ os.iso
 iso/boot/*.bin
 iso/modules/*
 userspace/initrd/*
-userspace/test_program.elf
+userspace/*.elf

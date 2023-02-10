@@ -64,7 +64,7 @@ extern "x86-interrupt" fn page_fault_handler(stack_frame: InterruptStackFrame, e
     log!("Error Code: {}", error_code);
     log!("{:#?}", stack_frame);
 
-    //panic!();
+    crate::hlt_loop()
 }
 
 /// Represents the interrupt stack frame pushed by the CPU on interrupt or exception entry.

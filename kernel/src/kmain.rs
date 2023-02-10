@@ -28,6 +28,8 @@ use core::panic::PanicInfo;
 
 use multiboot::MultibootInfo;
 
+use crate::task::{Multiprocessing, MULTIPROCESSING};
+
 // TODO IMPORTANT: check unsafe usage
 
 #[panic_handler]
@@ -147,8 +149,8 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     // unsafe {
     //     *(0xdeadbeef as *mut u64) = 42;
     // };
-    log!("Sleeping for 1 seconds...");
-    arch::pic::Timer::sleep(1000);
+    log!("Sleeping for 100 mseconds...");
+    arch::pic::Timer::sleep(100);
     log!("Good sleep");
 
     let fs_root = unsafe { &**filesystem::FS_ROOT.as_mut().unwrap() };
@@ -158,16 +160,21 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
             let nod = unsafe { &*node };
             if nod.kind == filesystem::Type::File {
                 let mut buf = [0u8; 64];
-                nod.read(0, nod.size, &mut buf);
-                log!("Contents: {:?}", buf);
+                let size = nod.read(0, nod.size, &mut buf).unwrap();
+                log!("Contents: {:?}", &buf[..size]);
             }
         }
     }
-    let nod = filesystem::fopen("/test_program.bin").unwrap();
-    if nod.kind == filesystem::Type::File {
-        let mut buf = [0u8; 64];
-        nod.read(0, nod.size, &mut buf);
-        log!("Contents: {:?}", buf);
+    // let nod = filesystem::fopen("/test_program.bin").unwrap();
+    // if nod.kind == filesystem::Type::File {
+    //     let mut buf = [0u8; 64];
+    //     nod.read(0, nod.size, &mut buf);
+    //     log!("Contents: {:?}", buf);
+    // }
+
+    unsafe {
+        MULTIPROCESSING = Some(Multiprocessing::new());
+        MULTIPROCESSING.as_mut().unwrap().init("/test_program.bin");
     }
 
     log!("Did not crash (yet)");

@@ -164,8 +164,8 @@ memcpy:
 .section .text.read_rip
 .globl read_rip
 read_rip:
-	pop rax
-	jmp rax
+	pop %rax
+	jmp %rax
 
 
 /* === Page-aligned data === */
@@ -198,7 +198,7 @@ init_pd:
 		.quad 0
 	.endr 
 init_stack_base:
-	.rept 0x1000 * 10
+	.rept 0x1000 * 20
 		.byte 0
 	.endr
 init_stack:

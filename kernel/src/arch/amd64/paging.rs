@@ -36,7 +36,7 @@ pub struct PageAllocator {
     pml4: VirtAddr,
     current_page_indexes: (usize, usize),
     physical_memory_offset: u64,
-    user_pages_addresses: Option<[(VirtAddr, PhysAddr); 3]>,
+    pub user_pages_addresses: Option<[(VirtAddr, PhysAddr); 3]>,
 }
 
 impl PageAllocator {
@@ -169,7 +169,7 @@ impl PageAllocator {
     }
 
     /// Create virtual address mapping for the given VirtAddr
-    fn alloc_vaddr(&mut self, addr: VirtAddr) -> Option<Page> {
+    pub fn alloc_vaddr(&mut self, addr: VirtAddr) -> Option<Page> {
         let page_indexes = [addr.p4_index(), addr.p3_index(), addr.p2_index()];
         let mut present = true;
         let mut page_table_ptr: &mut PageTable = unsafe { &mut *self.pml4.as_mut_ptr() };
@@ -208,7 +208,6 @@ impl PageAllocator {
             page_table_ptr[page_indexes[2]]
                 .set_addr(frame.start_address.as_u64(), PRESENT | WRITABLE | HUGE_PAGE);
             let ret = Page::from_start_address(addr);
-            log!("{:?}", ret);
 
             ret
         } else {

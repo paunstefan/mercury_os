@@ -9,6 +9,10 @@ use super::{
 
 static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
 
+extern "C" {
+    fn syscall_asm();
+}
+
 #[allow(clippy::fn_to_numeric_cast)]
 pub fn init_idt() {
     unsafe {
@@ -19,6 +23,7 @@ pub fn init_idt() {
         IDT.page_fault.set_handler_fn(page_fault_handler as u64);
         IDT.interrupts[InterruptIndex::Timer.IRQ_index()]
             .set_handler_fn(timer_interrupt_handler as u64);
+        IDT.interrupts[InterruptIndex::Syscall.IRQ_index()].set_handler_fn(syscall_asm as u64);
         IDT.load();
     }
 }
@@ -304,6 +309,7 @@ impl InterruptDescriptorTable {
 #[repr(u8)]
 pub enum InterruptIndex {
     Timer = super::pic::PIC_1_OFFSET,
+    Syscall = 0x80,
 }
 
 impl InterruptIndex {

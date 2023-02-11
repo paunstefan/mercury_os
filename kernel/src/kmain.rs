@@ -20,6 +20,7 @@ mod logging;
 mod mm;
 mod multiboot;
 mod sync;
+mod syscall;
 mod task;
 mod utils;
 

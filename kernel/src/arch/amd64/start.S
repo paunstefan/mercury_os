@@ -167,6 +167,53 @@ read_rip:
 	pop %rax
 	jmp %rax
 
+.macro pushaq
+	push %r15
+	push %r14
+	push %r13
+	push %r12
+	push %r11
+	push %rbp
+    push %rbx
+    push %rax
+    push %rcx
+	push %r9
+	push %r8
+	push %r10
+    push %rdx
+    push %rsi
+    push %rdi
+.endm # pushaq
+
+.macro popaq
+    pop %rdi
+    pop %rsi
+    pop %rdx
+	pop %r10
+	pop %r8
+	pop %r9
+    pop %rcx
+    pop %rax
+    pop %rbx
+    pop %rbp
+	pop %r11
+	pop %r12
+	pop %r13
+	pop %r14
+	pop %r15
+.endm # popaq
+
+
+.section .text.syscall_asm
+.extern syscall_handler
+.globl syscall_asm
+syscall_asm:
+	pushaq
+	cld
+	call syscall_handler
+	popaq
+	iretq
+
 
 /* === Page-aligned data === */
 .section .padata

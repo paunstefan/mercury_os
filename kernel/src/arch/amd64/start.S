@@ -175,11 +175,10 @@ read_rip:
 	push %r11
 	push %rbp
     push %rbx
-    push %rax
-    push %rcx
+	push %r10
 	push %r9
 	push %r8
-	push %r10
+    push %rcx
     push %rdx
     push %rsi
     push %rdi
@@ -189,11 +188,10 @@ read_rip:
     pop %rdi
     pop %rsi
     pop %rdx
-	pop %r10
+    pop %rcx
 	pop %r8
 	pop %r9
-    pop %rcx
-    pop %rax
+	pop %r10
     pop %rbx
     pop %rbp
 	pop %r11

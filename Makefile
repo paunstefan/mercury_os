@@ -9,7 +9,7 @@ else
 endif
 
 # Dev container runner
-RUNNER = podman
+RUNNER ?= podman
 
 # Toolchain commands (can be overridden)
 CARGO ?= cargo
@@ -32,21 +32,20 @@ LINKFLAGS += -z max-page-size=0x1000
 
 RUSTFLAGS := --cfg arch__$(ARCH) -C soft-float
 RUSTFLAGS += -C panic=abort
+CARGOFLAGS := -Z build-std=core,alloc,compiler_builtins -Z build-std-features=compiler-builtins-mem
 
 # Objects
 OBJS := start.o kernel.a
 OBJS := $(OBJS:%=$(OBJDIR)%)
 BIN := ./kernel.$(ARCH).bin
 
-# ifdef DEBUG
-	RUSTFLAGS += -g
-	AS_DEBUG := -g
-# endif
+RUSTFLAGS += -g
+AS_DEBUG := -g
+
 
 .PHONY: all clean PHONY
 
 all: $(BIN)
-
 
 # Final link command
 $(BIN): $(OBJS) kernel/src/arch/$(ARCH)/link.ld
@@ -63,7 +62,7 @@ endif
 # Compile rust kernel object
 $(OBJDIR)kernel.a: PHONY Makefile
 	@mkdir -p $(dir $@)
-	cd kernel; RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) build -Z build-std=core,alloc,compiler_builtins -Z build-std-features=compiler-builtins-mem --target=$(TARGETSPEC) --release
+	cd kernel; RUSTFLAGS="$(RUSTFLAGS)" $(CARGO) build $(CARGOFLAGS) --target=$(TARGETSPEC) --release
 	@cp kernel/target/target/release/libkernel.a $@
 
 # Compile architecture's assembly stub
@@ -72,8 +71,9 @@ $(OBJDIR)start.o: kernel/src/arch/$(ARCH)/start.S Makefile
 	$(AS) $(ASFLAGS) $(AS_DEBUG) -o $@ $<
 
 
-# Include dependency files
--include $(OBJDIR)start.d
+iso: $(BIN) utils/create_initrd.py
+	python3 utils/create_initrd.py userspace/initrd
+	genisoimage -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -A os -input-charset utf8 -quiet -boot-info-table -o os.iso iso
 
 clean:
 	$(RM) -rf $(BIN) $(BIN).elf64 $(BIN).dsm $(OBJDIR)
@@ -84,15 +84,14 @@ clean:
 run:
 	qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio -display none
 
+runiso:
+	qemu-system-x86_64  -cdrom os.iso -serial stdio -display none
+
 rundebug:
 	qemu-system-x86_64 -s -S -kernel kernel.amd64.bin -serial stdio -display none
 
 docker:
 	$(RUNNER) run --rm -it --entrypoint tmux --name mercury_dev -v  "$(shell pwd)":/usr/src/mercury_os/ mercuryos/dev
 
-iso: $(BIN)
-	python3 utils/create_initrd.py userspace/initrd
-	genisoimage -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -A os -input-charset utf8 -quiet -boot-info-table -o os.iso iso
-
-runiso:
-	qemu-system-x86_64  -cdrom os.iso -serial stdio -display none
+# Include dependency files
+-include $(OBJDIR)start.d

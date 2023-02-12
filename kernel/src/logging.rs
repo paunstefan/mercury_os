@@ -1,8 +1,6 @@
 use core::fmt;
 use core::sync::atomic;
 
-use crate::drivers::serial::SerialPort;
-
 /// A formatter object
 pub struct Writer(bool);
 

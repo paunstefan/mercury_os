@@ -62,8 +62,9 @@ qemu-system-x86_64  -cdrom os.iso -serial stdio -display none
 * [x] Timer peripheral
 * [x] Memory management
 * [x] Filesystem
-* [ ] Processes
-* [ ] User space
+* [x] Processes
+* [ ] Syscalls/User space
+* [ ] LibC
 * [ ] Graphics
 
 

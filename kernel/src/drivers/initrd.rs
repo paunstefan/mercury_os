@@ -10,7 +10,7 @@ use crate::{
     filesystem::{DirEnt, Type, VFS_Node},
 };
 
-use crate::logging;
+use super::devfs::initialize_devfs;
 
 static mut INIT_RD_FS: Option<InitRD> = None;
 
@@ -72,6 +72,8 @@ pub fn initialize_initrd(fs_location: u64, size: usize) -> *const VFS_Node {
         mount_point: None,
     };
 
+    let dev_fs_root = initialize_devfs();
+
     let dev_dir = VFS_Node {
         name: "dev".to_string(),
         kind: Type::Mountpoint,
@@ -81,7 +83,7 @@ pub fn initialize_initrd(fs_location: u64, size: usize) -> *const VFS_Node {
         write: None,
         readdir: None,
         finddir: None,
-        mount_point: None,
+        mount_point: Some(dev_fs_root),
     };
 
     let mut files = Vec::new();
@@ -105,8 +107,6 @@ pub fn initialize_initrd(fs_location: u64, size: usize) -> *const VFS_Node {
         files.push(file_header);
         file_nodes.push(file_node);
     }
-
-    log!("{:?}", files);
 
     let initrd_struct = InitRD {
         address: address as *const u8,
@@ -150,7 +150,7 @@ pub fn initrd_read(
 }
 
 pub fn readdir(node: &VFS_Node) -> Option<Vec<DirEnt>> {
-    if node.kind != Type::Dir {
+    if node.kind != Type::Dir && node.kind != Type::Mountpoint {
         return None;
     }
     let mut ret = Vec::new();

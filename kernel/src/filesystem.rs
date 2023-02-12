@@ -70,7 +70,7 @@ impl VFS_Node {
         }
 
         if let Some(readdirfn) = which.readdir {
-            return readdirfn(self);
+            return readdirfn(which);
         }
         None
     }
@@ -85,7 +85,7 @@ impl VFS_Node {
         }
 
         if let Some(finddir) = which.finddir {
-            return finddir(self, name);
+            return finddir(which, name);
         }
         None
     }
@@ -100,7 +100,7 @@ pub fn fopen(pathname: &str) -> Option<&mut VFS_Node> {
         return None;
     }
 
-    let mut current_dir = unsafe { &**FS_ROOT.as_mut().unwrap() };
+    let mut current_dir = unsafe { &**FS_ROOT.as_mut()? };
 
     for i in 1..parts.len() {
         // Reached file

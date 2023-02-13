@@ -3,7 +3,7 @@ ARCH ?= amd64
 
 ifeq ($(ARCH),amd64)
     TRIPLE ?= x86_64-elf-
-	UTILS_DIR ?= x86_64_binutils
+	UTILS_DIR ?= x86_64_binutils/bin
 else
     $(error Unknown architecture $(ARCH))
 endif
@@ -71,15 +71,24 @@ $(OBJDIR)start.o: kernel/src/arch/$(ARCH)/start.S Makefile
 	$(AS) $(ASFLAGS) $(AS_DEBUG) -o $@ $<
 
 
-iso: $(BIN) utils/create_initrd.py
-	python3 utils/create_initrd.py userspace/initrd
+INIT := userspace/initrd/init
+LIBC := libc/libc.a
+
+iso: $(BIN) userspace/create_initrd.py
+	cd libc && $(MAKE)
+	cd userspace && $(MAKE)
+	python3 userspace/create_initrd.py userspace/initrd
 	genisoimage -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -A os -input-charset utf8 -quiet -boot-info-table -o os.iso iso
 
 clean:
 	$(RM) -rf $(BIN) $(BIN).elf64 $(BIN).dsm $(OBJDIR)
 	$(RM) -rf iso/boot/$(BIN)
 	$(RM) -rf iso/modules/*
-	$(RM) -rf os.iso
+	$(RM) -f os.iso
+
+cleanall: clean
+	cd userspace && $(MAKE) clean
+	cd libc && $(MAKE) clean
 
 run:
 	qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio -display none

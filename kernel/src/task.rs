@@ -2,6 +2,7 @@ use core::arch::asm;
 
 use crate::arch::paging::PAGE_SIZE;
 use crate::arch::registers::Cr3;
+use crate::filesystem::VFS_Node;
 use crate::logging;
 
 use crate::{
@@ -21,6 +22,7 @@ pub struct Task {
     pub id: u64,
     pub registers: Registers,
     pub page_allocator: PageAllocator,
+    pub open_fd: Vec<*mut VFS_Node>,
 }
 
 #[derive(Debug)]
@@ -58,10 +60,14 @@ impl Multiprocessing {
     pub unsafe fn init(&mut self, program_name: &str) {
         // Create a page allocator for the process pages
         let page_allocator = PageAllocator::new_user(KERNEL_BASE);
+        let stdin_out = filesystem::fopen("/dev/serial").unwrap() as *mut VFS_Node;
+        let mut open_fd = Vec::new();
+        open_fd.push(stdin_out);
         let mut task = Task {
             id: self.current_id,
             registers: Registers::new(),
             page_allocator,
+            open_fd,
         };
 
         // Read the executable from the file
@@ -74,7 +80,6 @@ impl Multiprocessing {
         let program_mem = task.page_allocator.alloc_next_page(1).unwrap();
         let stack = task.page_allocator.alloc_next_page(1).unwrap();
         let stack_end_addr = stack.start_address.0 + PAGE_SIZE - 8;
-        log!("stack end 0x{:x}", stack_end_addr);
 
         // Switch to the process pages
         Cr3::write_raw(task.page_allocator.user_pages_addresses.unwrap()[0].1, 0);
@@ -96,7 +101,6 @@ impl Multiprocessing {
         let rsp: u64;
         let rbp: u64;
         asm!("mov {rsp}, rsp","mov {rbp}, rbp", rsp = out(reg) rsp, rbp = out(reg) rbp, options(nomem, nostack, preserves_flags));
-        log!("{} {}", rsp, rbp);
 
         let rip = read_rip();
 
@@ -113,10 +117,14 @@ impl Multiprocessing {
 
         // Create a page allocator for the process pages
         let page_allocator = PageAllocator::new_user(KERNEL_BASE);
+        let stdin_out = filesystem::fopen("/dev/serial").unwrap() as *mut VFS_Node;
+        let mut open_fd = Vec::new();
+        open_fd.push(stdin_out);
         let mut task = Task {
             id: self.current_id,
             registers: Registers::new(),
             page_allocator,
+            open_fd,
         };
 
         // Read the executable from the file

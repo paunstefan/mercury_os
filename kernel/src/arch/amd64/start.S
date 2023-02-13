@@ -182,6 +182,7 @@ read_rip:
     push %rdx
     push %rsi
     push %rdi
+	push %rax
 .endm # pushaq
 
 .macro popaq
@@ -209,6 +210,7 @@ syscall_asm:
 	pushaq
 	cld
 	call syscall_handler
+	add $8, %rsp
 	popaq
 	iretq
 

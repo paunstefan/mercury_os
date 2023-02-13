@@ -16,6 +16,7 @@ extern "C" {
 #[derive(Debug, Clone, Copy)]
 #[repr(C, packed)]
 pub struct Registers {
+    pub rax: u64,
     pub rdi: u64,
     pub rsi: u64,
     pub rdx: u64,

@@ -89,14 +89,6 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     let fs_root = unsafe { &**filesystem::FS_ROOT.as_mut().unwrap() };
     for f in fs_root.readdir().unwrap() {
         log!("{:?}", f);
-        if let Some(node) = fs_root.finddir(&f.name) {
-            let nod = unsafe { &*node };
-            if nod.kind == filesystem::Type::File {
-                let mut buf = [0u8; 64];
-                let size = nod.read(0, nod.size, &mut buf).unwrap();
-                log!("Contents: {:?}", &buf[..size]);
-            }
-        }
     }
 
     let dev_dir = filesystem::fopen("/dev").unwrap();
@@ -105,10 +97,10 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
         log!("{:?}", f);
     }
 
-    // unsafe {
-    //     MULTIPROCESSING = Some(Multiprocessing::new());
-    //     MULTIPROCESSING.as_mut().unwrap().init("/test_program.bin");
-    // }
+    unsafe {
+        MULTIPROCESSING = Some(Multiprocessing::new());
+        MULTIPROCESSING.as_mut().unwrap().init("/init");
+    }
 
     log!("Did not crash (yet)");
     hlt_loop()

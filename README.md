@@ -78,4 +78,6 @@ qemu-system-x86_64  -cdrom os.iso -serial stdio -display none
 - `x86_64_binutils` - needed GNU binutils for building the kernel
 - `Dockerfile` - Docker image configuration for the build environment
 - `iso/` - GRUB binary and config to build a bootable ISO
+- `userspace/` - Files used to build the userspace programs and filesystem
+- `libc/` - LibC implementation for user programs
 - `DOCUMENTATION.md` - more detailed documentation of the OS internals

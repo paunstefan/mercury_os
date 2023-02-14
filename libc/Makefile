@@ -18,7 +18,7 @@ INCLUDEDIR := include
 SOURCES := $(wildcard $(SRCDIR)/*.c)
 OBJECTS := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SOURCES))
 
-CFLAGS := -I$(INCLUDEDIR)
+CFLAGS := -I$(INCLUDEDIR) -nostdlib  -nostdinc -nodefaultlibs -fno-builtin
 
 all: libc.a
 

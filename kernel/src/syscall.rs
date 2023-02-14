@@ -1,6 +1,14 @@
-use core::slice::{from_raw_parts, from_raw_parts_mut};
+use core::{
+    slice::{from_raw_parts, from_raw_parts_mut},
+    str::from_utf8_unchecked,
+};
 
-use crate::{arch::interrupts::Registers, logging, task::MULTIPROCESSING};
+use crate::{
+    arch::interrupts::Registers,
+    filesystem::{self, VFS_Node},
+    logging,
+    task::MULTIPROCESSING,
+};
 
 #[no_mangle]
 pub unsafe extern "C" fn syscall_handler(regs: Registers) {
@@ -17,6 +25,7 @@ pub unsafe extern "C" fn syscall_handler(regs: Registers) {
         7 => syscall_uptime(),
         8 => syscall_exec(regs.rdi),
         9 => syscall_blit(regs.rdi),
+        10 => syscall_fseek(regs.rdi, regs.rsi, regs.rdx),
         _ => 0,
     };
 
@@ -31,7 +40,9 @@ unsafe fn syscall_sleep(ms: u64) -> i64 {
 }
 
 unsafe fn syscall_exit() -> i64 {
-    todo!()
+    // TODO: actually switch task
+    log!("EXIT");
+    crate::hlt_loop()
 }
 
 unsafe fn syscall_getpid() -> i64 {
@@ -39,25 +50,54 @@ unsafe fn syscall_getpid() -> i64 {
 }
 
 unsafe fn syscall_uptime() -> i64 {
-    todo!()
+    crate::arch::pic::Timer::UPTIME as i64
 }
 
 unsafe fn syscall_open(path_addr: u64) -> i64 {
-    todo!()
+    let path_ptr = path_addr as *const u8;
+    let path_len = {
+        let mut l = 0;
+        while *path_ptr.add(l) != 0 {
+            l += 1;
+        }
+        l
+    };
+    let path = from_utf8_unchecked(from_raw_parts(path_ptr, path_len));
+    log!("path: {}", path);
+
+    let mp_module = MULTIPROCESSING.as_mut().unwrap();
+
+    match filesystem::fopen(path) {
+        Some(file_ref) => {
+            let open_fd = (file_ref as *mut VFS_Node, 0);
+            let fd = mp_module.tasks[mp_module.current_id as usize].open_fd.len();
+            mp_module.tasks[mp_module.current_id as usize]
+                .open_fd
+                .push(open_fd);
+            log!("fd: {}", fd);
+            fd as i64
+        }
+        None => -1,
+    }
 }
 
 unsafe fn syscall_close(fd: u64) -> i64 {
-    todo!()
+    let mp_module = MULTIPROCESSING.as_mut().unwrap();
+    mp_module.tasks[mp_module.current_id as usize]
+        .open_fd
+        .remove(fd as usize);
+    fd as i64
 }
 
-// TODO: implement seek (offset) in kernel
 unsafe fn syscall_read(fd: u64, length: u64, buf_addr: u64) -> i64 {
     let mp_module = MULTIPROCESSING.as_mut().unwrap();
-    let file_node = &mut *(mp_module.tasks[mp_module.current_id as usize].open_fd[fd as usize]);
+    let (file_ptr, pos) = mp_module.tasks[mp_module.current_id as usize].open_fd[fd as usize];
     let slice = from_raw_parts_mut(buf_addr as *mut u8, length as usize);
-    let ret = file_node.read(0, length as usize, slice);
+    let file_node = &*file_ptr;
+    let ret = file_node.read(pos as usize, length as usize, slice);
 
     if let Some(read) = ret {
+        mp_module.tasks[mp_module.current_id as usize].open_fd[fd as usize].1 += read as u64;
         read as i64
     } else {
         -1
@@ -66,14 +106,39 @@ unsafe fn syscall_read(fd: u64, length: u64, buf_addr: u64) -> i64 {
 
 unsafe fn syscall_write(fd: u64, length: u64, buf_addr: u64) -> i64 {
     let mp_module = MULTIPROCESSING.as_mut().unwrap();
-    let file_node = &mut *(mp_module.tasks[mp_module.current_id as usize].open_fd[fd as usize]);
-    let slice = from_raw_parts(buf_addr as *const u8, length as usize);
-    let ret = file_node.write(0, length as usize, slice);
+    let (file_ptr, pos) = mp_module.tasks[mp_module.current_id as usize].open_fd[fd as usize];
+    let slice = from_raw_parts_mut(buf_addr as *mut u8, length as usize);
+    let file_node = &mut *file_ptr;
+    let ret = file_node.write(pos as usize, length as usize, slice);
 
     if let Some(wrote) = ret {
+        mp_module.tasks[mp_module.current_id as usize].open_fd[fd as usize].1 += wrote as u64;
         wrote as i64
     } else {
         -1
+    }
+}
+
+unsafe fn syscall_fseek(fd: u64, offset: u64, whence: u64) -> i64 {
+    let mp_module = MULTIPROCESSING.as_mut().unwrap();
+    let file_size =
+        { (*mp_module.tasks[mp_module.current_id as usize].open_fd[fd as usize].0).size };
+    let pos = &mut mp_module.tasks[mp_module.current_id as usize].open_fd[fd as usize].1;
+
+    match whence {
+        0 => {
+            *pos = offset;
+            *pos as i64
+        }
+        1 => {
+            *pos += offset;
+            *pos as i64
+        }
+        2 => {
+            *pos = file_size as u64 + offset;
+            *pos as i64
+        }
+        _ => -1,
     }
 }
 

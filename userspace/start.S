@@ -2,5 +2,10 @@
 .extern main
 .globl main
     call main
-loop:
-    jmp loop
+
+    mov $5, %rax
+    int $0x80
+
+.section .data
+.globl errno
+errno:	.long 0

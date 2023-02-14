@@ -11,7 +11,7 @@
 
 DECL_SYSCALL3(read, uint64_t, uint64_t, const uint8_t *)
 DECL_SYSCALL3(write, uint64_t, uint64_t, const uint8_t *)
-DECL_SYSCALL1(open, uint64_t)
+DECL_SYSCALL1(open, const char *)
 DECL_SYSCALL1(close, uint64_t)
 DECL_SYSCALL1(sleep, uint64_t)
 DECL_SYSCALL0(exit)
@@ -19,6 +19,7 @@ DECL_SYSCALL0(getpid)
 DECL_SYSCALL0(uptime)
 DECL_SYSCALL1(exec, const char *)
 DECL_SYSCALL1(blit, uint64_t)
+DECL_SYSCALL3(fseek, uint64_t, uint64_t, uint64_t)
 
 #define DEFN_SYSCALL0(fn, num)                         \
     int64_t syscall_##fn()                             \

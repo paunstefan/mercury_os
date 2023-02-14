@@ -9,12 +9,7 @@ typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
 
-#ifdef __x86_64__
 typedef unsigned long uint64_t;
 typedef long int64_t;
-#else
-typedef unsigned long long uint64_t;
-typedef long long int64_t;
-#endif
 
 #endif

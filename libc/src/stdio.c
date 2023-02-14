@@ -5,13 +5,13 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
+#include <stddef.h>
+#include <errno.h>
 
-static FILE _stdin = {0, 0};
-static FILE _stdout = {0, 0};
-static FILE _stderr = {0, 0};
-FILE *stdin = &_stdin;
+static FILE _stdout = {0, NULL, NULL, 0, 0, 0, 0};
+FILE *stdin = &_stdout;
 FILE *stdout = &_stdout;
-FILE *stderr = &_stderr;
+FILE *stderr = &_stdout;
 
 #if 0
 FILE *fopen(char *path, char *mode)
@@ -38,8 +38,17 @@ int fclose(FILE *fp)
 }
 #endif
 
+// Output
+
 int fputc(int c, FILE *fp)
 {
+    if (NULL != fp->obuf)
+    {
+        if (fp->olen < fp->osize)
+        {
+            fp->obuf[fp->olen++] = c;
+        }
+    }
     uint64_t ret = write(fp->fd, &c, 1);
     if (ret < 0)
     {
@@ -258,6 +267,28 @@ int vfprintf(FILE *fp, char *fmt, va_list ap)
     return 0;
 }
 
+void perror(char *s)
+{
+    int idx = errno;
+    if (idx >= sys_nerr)
+        idx = 0;
+    if (s && *s)
+        printf("%s: %s\n", s, sys_errlist[idx]);
+    else
+        printf("%s\n", sys_errlist[idx]);
+}
+
+int vsnprintf(char *dst, int sz, char *fmt, va_list ap)
+{
+    FILE f = {-1, NULL, NULL, 0, 0, 0, 0};
+    int ret;
+    f.obuf = dst;
+    f.osize = sz - 1;
+    ret = vfprintf(&f, fmt, ap);
+    dst[f.olen] = '\0';
+    return ret;
+}
+
 int printf(char *fmt, ...)
 {
     va_list ap;
@@ -266,4 +297,197 @@ int printf(char *fmt, ...)
     ret = vfprintf(stdout, fmt, ap);
     va_end(ap);
     return ret;
+}
+
+int fprintf(FILE *fp, char *fmt, ...)
+{
+    va_list ap;
+    int ret;
+    va_start(ap, fmt);
+    ret = vfprintf(fp, fmt, ap);
+    va_end(ap);
+    return ret;
+}
+
+int snprintf(char *dst, int sz, char *fmt, ...)
+{
+    va_list ap;
+    int ret;
+    va_start(ap, fmt);
+    ret = vsnprintf(dst, sz, fmt, ap);
+    va_end(ap);
+    return ret;
+}
+
+int fputs(char *s, FILE *fp)
+{
+    while (*s)
+        fputc((unsigned char)*s++, fp);
+    return 0;
+}
+
+int puts(char *s)
+{
+    int ret = fputs(s, stdout);
+    if (ret >= 0)
+        fputc('\n', stdout);
+    return ret;
+}
+
+long fwrite(void *v, long sz, long n, FILE *fp)
+{
+    unsigned char *s = v;
+    int i = n * sz;
+    while (i-- > 0)
+        if (fputc(*s++, fp) == EOF)
+            return n * sz - i - 1;
+    return n * sz;
+}
+
+// Input
+
+static int ic(FILE *fp)
+{
+    unsigned char ch;
+    if (read(fp->fd, &ch, 1) <= 0)
+        return EOF;
+
+    return ch;
+}
+
+int fgetc(FILE *fp)
+{
+    return ic(fp);
+}
+
+int getchar(void)
+{
+    return ic(stdin);
+}
+
+static int iint(FILE *fp, void *dst, int t, int wid)
+{
+    long n = 0;
+    int c;
+    int neg = 0;
+    c = ic(fp);
+    if (c == '-')
+        neg = 1;
+    if ((c == '-' || c == '+') && wid-- > 0)
+        c = ic(fp);
+    if (!isdigit(c) || wid <= 0)
+    {
+        return 1;
+    }
+    do
+    {
+        n = n * 10 + c - '0';
+    } while (isdigit(c = ic(fp)) && --wid > 0);
+    if (t == 8)
+        *(long *)dst = neg ? -n : n;
+    else if (t == 4)
+        *(int *)dst = neg ? -n : n;
+    else if (t == 2)
+        *(short *)dst = neg ? -n : n;
+    else
+        *(char *)dst = neg ? -n : n;
+    return 0;
+}
+
+static int istr(FILE *fp, char *dst, int wid)
+{
+    char *d = dst;
+    int c;
+
+    while ((c = ic(fp)) != EOF && wid-- > 0 && !isspace(c))
+    {
+        *d++ = c;
+    }
+    *d = '\0';
+    return d == dst;
+}
+
+int vfscanf(FILE *fp, char *fmt, va_list ap)
+{
+    int ret = 0;
+    int t, c;
+    int wid = 1 << 20;
+
+    while (*fmt)
+    {
+        while (isspace((unsigned char)*fmt))
+            fmt++;
+        // while (isspace(c = ic(fp)))
+        //     ;
+        while (*fmt && *fmt != '%' && !isspace((unsigned char)*fmt))
+        {
+            if (*fmt++ != ic(fp))
+                return ret;
+        }
+        if (*fmt != '%')
+            continue;
+        fmt++;
+        if (isdigit((unsigned char)*fmt))
+        {
+            wid = 0;
+            while (isdigit((unsigned char)*fmt))
+                wid = wid * 10 + *fmt++ - '0';
+        }
+        t = sizeof(int);
+        while (*fmt == 'l')
+        {
+            t = sizeof(long);
+            fmt++;
+        }
+        while (*fmt == 'h')
+        {
+            t = t < sizeof(int) ? sizeof(char) : sizeof(short);
+            fmt++;
+        }
+        switch (*fmt++)
+        {
+        case 'u':
+        case 'd':
+            if (iint(fp, va_arg(ap, long *), t, wid))
+                return ret;
+            ret++;
+            break;
+        case 's':
+            if (istr(fp, va_arg(ap, char *), wid))
+                return ret;
+            ret++;
+            break;
+        }
+    }
+    return ret;
+}
+
+int fscanf(FILE *fp, char *fmt, ...)
+{
+    va_list ap;
+    int ret;
+    va_start(ap, fmt);
+    ret = vfscanf(fp, fmt, ap);
+    va_end(ap);
+    return ret;
+}
+
+int scanf(char *fmt, ...)
+{
+    va_list ap;
+    int ret;
+    va_start(ap, fmt);
+    ret = vfscanf(stdin, fmt, ap);
+    va_end(ap);
+    return ret;
+}
+
+long fread(void *v, long sz, long n, FILE *fp)
+{
+    char *s = v;
+    int i = n * sz;
+    while (i-- > 0)
+        if ((*s++ = ic(fp)) == EOF)
+            return n * sz - i - 1;
+    return n * sz;
 }

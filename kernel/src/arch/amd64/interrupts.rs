@@ -42,12 +42,17 @@ pub fn init_idt() {
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     use super::pic::Timer::COUNT_DOWN;
+    use super::pic::Timer::UPTIME;
     unsafe {
         let volatile = &mut COUNT_DOWN as *mut u64;
         let count = core::ptr::read_volatile(volatile);
         if count > 0 {
             core::ptr::write_volatile(volatile, count - 1);
         }
+
+        let volatile = &mut UPTIME as *mut u64;
+        let count = core::ptr::read_volatile(volatile);
+        core::ptr::write_volatile(volatile, count + 1);
 
         crate::arch::pic::PICS
             .lock()

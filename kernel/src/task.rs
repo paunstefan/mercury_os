@@ -22,7 +22,7 @@ pub struct Task {
     pub id: u64,
     pub registers: Registers,
     pub page_allocator: PageAllocator,
-    pub open_fd: Vec<*mut VFS_Node>,
+    pub open_fd: Vec<(*mut VFS_Node, u64)>,
 }
 
 #[derive(Debug)]
@@ -62,7 +62,7 @@ impl Multiprocessing {
         let page_allocator = PageAllocator::new_user(KERNEL_BASE);
         let stdin_out = filesystem::fopen("/dev/serial").unwrap() as *mut VFS_Node;
         let mut open_fd = Vec::new();
-        open_fd.push(stdin_out);
+        open_fd.push((stdin_out, 0));
         let mut task = Task {
             id: self.current_id,
             registers: Registers::new(),
@@ -78,6 +78,8 @@ impl Multiprocessing {
 
         // Allocate pages for the process
         let program_mem = task.page_allocator.alloc_next_page(1).unwrap();
+        // !! HEAP will start at 0x200000
+        let heap = task.page_allocator.alloc_next_page(3).unwrap();
         let stack = task.page_allocator.alloc_next_page(1).unwrap();
         let stack_end_addr = stack.start_address.0 + PAGE_SIZE - 8;
 
@@ -119,7 +121,7 @@ impl Multiprocessing {
         let page_allocator = PageAllocator::new_user(KERNEL_BASE);
         let stdin_out = filesystem::fopen("/dev/serial").unwrap() as *mut VFS_Node;
         let mut open_fd = Vec::new();
-        open_fd.push(stdin_out);
+        open_fd.push((stdin_out, 0));
         let mut task = Task {
             id: self.current_id,
             registers: Registers::new(),

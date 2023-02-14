@@ -159,6 +159,7 @@ pub mod Timer {
     use crate::arch::io::outb;
 
     pub static mut COUNT_DOWN: u64 = 0;
+    pub static mut UPTIME: u64 = 0;
 
     pub const FREQUENCY: u32 = 1193180;
 

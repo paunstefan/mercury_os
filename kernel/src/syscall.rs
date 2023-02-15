@@ -143,7 +143,22 @@ unsafe fn syscall_fseek(fd: u64, offset: u64, whence: u64) -> i64 {
 }
 
 unsafe fn syscall_exec(path_addr: u64) -> i64 {
-    todo!()
+    let path_ptr = path_addr as *const u8;
+    let path_len = {
+        let mut l = 0;
+        while *path_ptr.add(l) != 0 {
+            l += 1;
+        }
+        l
+    };
+    let path = from_utf8_unchecked(from_raw_parts(path_ptr, path_len));
+    log!("path: {}", path);
+
+    let mp_module = MULTIPROCESSING.as_mut().unwrap();
+
+    mp_module.execute(path);
+
+    0
 }
 
 unsafe fn syscall_blit(address: u64) -> i64 {

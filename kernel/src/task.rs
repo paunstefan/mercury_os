@@ -1,6 +1,7 @@
 use core::arch::asm;
 
-use crate::arch::paging::PAGE_SIZE;
+use crate::arch::addressing::{PhysAddr, VirtAddr};
+use crate::arch::paging::{KERNEL_CR3, PAGE_SIZE};
 use crate::arch::registers::Cr3;
 use crate::filesystem::VFS_Node;
 use crate::logging;
@@ -79,7 +80,7 @@ impl Multiprocessing {
         // Allocate pages for the process
         let program_mem = task.page_allocator.alloc_next_page(1).unwrap();
         // !! HEAP will start at 0x200000
-        let heap = task.page_allocator.alloc_next_page(3).unwrap();
+        let heap = task.page_allocator.alloc_next_page(4).unwrap();
         let stack = task.page_allocator.alloc_next_page(1).unwrap();
         let stack_end_addr = stack.start_address.0 + PAGE_SIZE - 8;
 
@@ -98,7 +99,7 @@ impl Multiprocessing {
     /// Run a new process, pausing the currently running process
     ///
     /// Should only be called from an interrupt context
-    /// TODO: this is not tested yet
+    /// TODO: this is not working
     pub unsafe fn execute(&mut self, program_name: &str) {
         let rsp: u64;
         let rbp: u64;
@@ -116,6 +117,10 @@ impl Multiprocessing {
         self.tasks[self.current_id as usize].registers.rip = rip;
 
         self.current_id += 1;
+
+        log!("0x{:x} 0x{:x}", rip, KERNEL_CR3);
+
+        Cr3::write_raw(PhysAddr::new(KERNEL_CR3), 0);
 
         // Create a page allocator for the process pages
         let page_allocator = PageAllocator::new_user(KERNEL_BASE);
@@ -137,9 +142,46 @@ impl Multiprocessing {
 
         // Allocate pages for the process
         let program_mem = task.page_allocator.alloc_next_page(1).unwrap();
+        // !! HEAP will start at 0x200000
+        let heap = task.page_allocator.alloc_next_page(4).unwrap();
         let stack = task.page_allocator.alloc_next_page(1).unwrap();
         let stack_end_addr = stack.start_address.0 + PAGE_SIZE - 8;
+
         self.tasks.push(task);
+        log!(
+            "{:?}",
+            self.tasks[self.current_id as usize]
+                .page_allocator
+                .user_pages_addresses
+                .unwrap()[0]
+        );
+
+        // Switch to the process pages
+        Cr3::write_raw(
+            self.tasks[self.current_id as usize]
+                .page_allocator
+                .user_pages_addresses
+                .unwrap()[0]
+                .1,
+            0,
+        );
+        log!("2");
+        // Copy program
+        core::ptr::copy_nonoverlapping(bytes.as_ptr(), 0 as *mut u8, bytes.len());
+        log!("3");
+
+        // Set registers and jump
+        asm!("cli", "mov rsp, {stack}", "mov rbp, {stack}", "mov rax, 0xDEADC0DE", "sti", "mov rcx, 0", "jmp rcx", 
+                stack = in(reg) stack_end_addr);
+    }
+
+    pub unsafe fn exit(&mut self) {
+        let mut task = self.tasks.pop().unwrap();
+        self.current_id -= 1;
+
+        for i in 0..6 {
+            task.page_allocator.free_vaddr(VirtAddr::new(i * 0x200000));
+        }
 
         // Switch to the process pages
         Cr3::write_raw(
@@ -151,11 +193,12 @@ impl Multiprocessing {
             0,
         );
 
-        // Copy program
-        core::ptr::copy_nonoverlapping(bytes.as_ptr(), 0 as *mut u8, bytes.len());
+        let rsp = self.tasks[self.current_id as usize].registers.rsp;
+        let rbp = self.tasks[self.current_id as usize].registers.rbp;
+        let rip = self.tasks[self.current_id as usize].registers.rip;
 
         // Set registers and jump
-        asm!("cli", "mov rsp, {stack}", "mov rbp, {stack}", "mov rax, 0xDEADC0DE", "sti", "mov rcx, 0", "jmp rcx", 
-                stack = in(reg) stack_end_addr);
+        asm!("cli", "mov rsp, {rsp}", "mov rbp, {rbp}", "sti", "jmp {rip}", 
+                rsp = in(reg) rsp, rbp = in(reg) rbp, rip = in(reg) rip);
     }
 }

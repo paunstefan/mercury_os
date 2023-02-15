@@ -31,6 +31,15 @@ long labs(long n)
     return n >= 0 ? n : -n;
 }
 
+double fabs(double n)
+{
+    if (n < 0)
+    {
+        return -n;
+    }
+    return n;
+}
+
 long atol(const char *s)
 {
     unsigned long ret = 0;

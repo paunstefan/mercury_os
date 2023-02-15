@@ -20,13 +20,13 @@ mboot:
 	.long MULTIBOOT_HEADER_MAGIC
 	.long MULTIBOOT_HEADER_FLAGS
 	.long MULTIBOOT_CHECKSUM
-	.long mboot
+	.long 0
 	/* a.out kludge (not used, the kernel is elf) */
 	.long 0, 0, 0, 0	/* load_addr, load_end_addr, bss_end_addr, entry_addr */
 	/* Video mode */
 	.long 0 	/* Mode type (0: LFB) */
-	.long 0 	/* Width (no preference) */
-	.long 0 	/* Height (no preference) */
+	.long 640 	/* Width */
+	.long 400 	/* Height */
 	.long 32	/* Depth (32-bit preferred) */
 
 #define DEBUG(c)	mov $0x3f8, %dx ; mov $c, %al ; outb %al, %dx

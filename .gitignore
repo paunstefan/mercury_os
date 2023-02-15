@@ -7,6 +7,8 @@ iso/modules/*
 userspace/initrd/*
 userspace/*.elf
 userspace/init/obj/*
+userspace/init/*.o
+userspace/test_program/*.elf
 userspace/*.o
 libc/libc.a
 libc/obj/*

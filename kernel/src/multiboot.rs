@@ -14,6 +14,18 @@ pub struct MultibootInfo {
     pub table: ELF_Section_Header_Table,
     pub mmap_length: u32,
     pub mmap_addr: u32,
+    pub drives_length: u32,
+    pub drives_addr: u32,
+    pub config_table: u32,
+    pub boot_loader_name: u32,
+    pub apm_table: u32,
+    pub vbe_control_info: u32,
+    pub vbe_mode_info: u32,
+    pub vbe_mode: u16,
+    pub vbe_interface_seg: u16,
+    pub vbe_interface_off: u16,
+    pub vbe_interface_len: u16,
+    pub framebuffer: MultibootFramebuffer,
 }
 
 impl MultibootInfo {
@@ -24,6 +36,18 @@ impl MultibootInfo {
         //TODO: check magic numbers and flags
         &*((info_address + crate::arch::addressing::KERNEL_BASE) as *const Self) as _
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C, packed)]
+pub struct MultibootFramebuffer {
+    pub addr: u64,
+    pub pitch: u32,
+    pub width: u32,
+    pub height: u32,
+    pub bpp: u8,
+    pub typ: u8,
+    pub reserved: u8,
 }
 
 #[derive(Clone, Copy, Debug)]

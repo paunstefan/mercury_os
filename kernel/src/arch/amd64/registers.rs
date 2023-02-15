@@ -45,9 +45,7 @@ impl Cr3 {
     pub unsafe fn write_raw(frame: PhysAddr, val: u16) {
         let value = frame.as_u64() | val as u64;
 
-        unsafe {
-            asm!("mov cr3, {}", in(reg) value, options(nostack, preserves_flags));
-        }
+        asm!("mov cr3, {}", in(reg) value);
     }
 }
 

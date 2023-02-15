@@ -19,7 +19,7 @@ extern "C" {
 // TODO: add mutex
 pub static mut GLOBAL_FRAME_ALLOCATOR: PageFrameAllocator = PageFrameAllocator::new();
 
-static mut KERNEL_CR3: u64 = 0;
+pub static mut KERNEL_CR3: u64 = 0;
 
 /// I use 2MB pages
 pub const PAGE_SIZE: u64 = 2 * 1024 * 1024;

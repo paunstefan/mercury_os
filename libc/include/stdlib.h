@@ -1,11 +1,11 @@
 #ifndef _STDLIB_H
 #define _STDLIB_H
-#if 0
+
 void *malloc(long n);
 void free(void *m);
 void *calloc(long n, long sz);
 void *realloc(void *v, long sz);
-#endif
+
 int atoi(const char *s);
 long atol(const char *s);
 
@@ -14,6 +14,7 @@ unsigned long strtoul(const char *s, char **endptr, int base);
 
 int abs(int n);
 long labs(long n);
+double fabs(double n);
 
 #if 0
 char *getenv(char *name);

@@ -49,7 +49,7 @@ pub fn hlt_loop() -> ! {
 pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     // Needed stuff
     let mb_info = unsafe { multiboot::MultibootInfo::read(multiboot_info) };
-    log!("{:?}", mb_info);
+    log!("{:#?}", mb_info);
 
     unsafe {
         init_kernel(mb_info);
@@ -75,34 +75,18 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
         }
     }
 
-    let x = alloc::boxed::Box::new(41);
-    log!("{:?}", x);
-    let mut v = alloc::vec![0, 1, 2];
-    log!("{:?}", v);
-    v.push(42);
-    log!("{:?}", v);
-
-    log!("Sleeping for 100 mseconds...");
-    arch::pic::Timer::sleep(100);
-    log!("Good sleep");
-
     let fs_root = unsafe { &**filesystem::FS_ROOT.as_mut().unwrap() };
     for f in fs_root.readdir().unwrap() {
         log!("{:?}", f);
     }
 
-    let dev_dir = filesystem::fopen("/dev").unwrap();
-
-    for f in dev_dir.readdir().unwrap() {
-        log!("{:?}", f);
-    }
+    log!(":)\n\n");
 
     unsafe {
         MULTIPROCESSING = Some(Multiprocessing::new());
         MULTIPROCESSING.as_mut().unwrap().init("/init");
     }
 
-    log!("Did not crash (yet)");
     hlt_loop()
 }
 
@@ -119,7 +103,7 @@ unsafe fn init_kernel(multiboot: &'static MultibootInfo) {
     arch::interrupts::enable();
     let allocator =
         arch::paging::PageAllocator::new_kernel(511, 510, arch::addressing::KERNEL_BASE);
-    mm::ALLOCATOR.lock().init(allocator, 1);
+    mm::ALLOCATOR.lock().init(allocator, 2);
     log!("Initialized heap allocator");
     filesystem::initialize_fs(multiboot);
     log!("Initialized filesystem");

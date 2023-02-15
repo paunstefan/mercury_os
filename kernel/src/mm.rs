@@ -5,8 +5,6 @@ use crate::arch::paging::{PageAllocator, PAGE_SIZE};
 use crate::sync::SpinMutex;
 use crate::utils::align_up;
 
-const HEAP_NO_PAGES: usize = 2;
-
 #[global_allocator]
 pub static ALLOCATOR: SpinMutex<BumpAllocator> = SpinMutex::new(BumpAllocator::new());
 
@@ -30,16 +28,12 @@ impl BumpAllocator {
     }
 
     /// Initializes the heap to a size of _no_pages * PAGE_SIZE
-    /// TODO: for the moment only 1 page
-    pub fn init(&mut self, mut allocator: PageAllocator, _no_pages: usize) {
-        let start = allocator
-            .alloc_next_page(HEAP_NO_PAGES)
-            .unwrap()
-            .start_address;
+    pub fn init(&mut self, mut allocator: PageAllocator, no_pages: usize) {
+        let start = allocator.alloc_next_page(no_pages).unwrap().start_address;
 
         self.page_allocator = Some(allocator);
         self.heap_start = start.as_u64() as usize;
-        self.heap_end = self.heap_start + HEAP_NO_PAGES * PAGE_SIZE as usize - 1;
+        self.heap_end = self.heap_start + no_pages * PAGE_SIZE as usize - 1;
         self.next = self.heap_start;
     }
 }

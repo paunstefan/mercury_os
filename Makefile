@@ -76,7 +76,7 @@ LIBC := libc/libc.a
 
 iso: $(BIN) userspace/create_initrd.py
 	cd libc && $(MAKE)
-	cd userspace && $(MAKE)
+	cd userspace/init && $(MAKE)
 	python3 userspace/create_initrd.py userspace/initrd
 	genisoimage -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -A os -input-charset utf8 -quiet -boot-info-table -o os.iso iso
 
@@ -87,14 +87,14 @@ clean:
 	$(RM) -f os.iso
 
 cleanall: clean
-	cd userspace && $(MAKE) clean
+	cd userspace/init && $(MAKE) clean
 	cd libc && $(MAKE) clean
 
 run:
 	qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio -display none
 
 runiso:
-	qemu-system-x86_64  -cdrom os.iso -serial stdio -display none
+	qemu-system-x86_64  -cdrom os.iso -serial stdio
 
 rundebug:
 	qemu-system-x86_64 -s -S -kernel kernel.amd64.bin -serial stdio -display none

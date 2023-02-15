@@ -29,13 +29,28 @@ pub struct Registers {
 pub fn init_idt() {
     unsafe {
         IDT.breakpoint.set_handler_fn(breakpoint_handler as u64);
-        // IDT.breakpoint.options.set_IST(1);
         IDT.double_fault.set_handler_fn(double_fault_handler as u64);
         IDT.double_fault.options.set_IST(1);
         IDT.page_fault.set_handler_fn(page_fault_handler as u64);
         IDT.interrupts[InterruptIndex::Timer.IRQ_index()]
             .set_handler_fn(timer_interrupt_handler as u64);
         IDT.interrupts[InterruptIndex::Syscall.IRQ_index()].set_handler_fn(syscall_asm as u64);
+
+        IDT.overflow.set_handler_fn(overflow_handler as u64);
+        IDT.invalid_tss.set_handler_fn(invalidtss_handler as u64);
+        IDT.invalid_opcode
+            .set_handler_fn(invalidopcode_handler as u64);
+        IDT.segment_not_present
+            .set_handler_fn(segmentnotpresent_handler as u64);
+        IDT.stack_segment_fault
+            .set_handler_fn(stacksegment_handler as u64);
+        IDT.general_protection_fault
+            .set_handler_fn(generalprotection_handler as u64);
+        IDT.machine_check
+            .set_handler_fn(machinecheck_handler as u64);
+        IDT.alignment_check
+            .set_handler_fn(alignmentcheck_handler as u64);
+
         IDT.load();
     }
 }
@@ -86,6 +101,46 @@ extern "x86-interrupt" fn page_fault_handler(stack_frame: InterruptStackFrame, e
     log!("Error Code: {}", error_code);
     log!("{:#?}", stack_frame);
 
+    crate::hlt_loop()
+}
+
+extern "x86-interrupt" fn overflow_handler(stack_frame: InterruptStackFrame) {
+    log!("EXCEPTION: OVERFLOW\n{:#?}", stack_frame);
+    crate::hlt_loop()
+}
+
+extern "x86-interrupt" fn invalidtss_handler(stack_frame: InterruptStackFrame) {
+    log!("EXCEPTION: Invalid TSS\n{:#?}", stack_frame);
+    crate::hlt_loop()
+}
+
+extern "x86-interrupt" fn invalidopcode_handler(stack_frame: InterruptStackFrame) {
+    log!("EXCEPTION: Invalid Opcode\n{:#?}", stack_frame);
+    crate::hlt_loop()
+}
+
+extern "x86-interrupt" fn segmentnotpresent_handler(stack_frame: InterruptStackFrame) {
+    log!("EXCEPTION: Segment not present\n{:#?}", stack_frame);
+    crate::hlt_loop()
+}
+
+extern "x86-interrupt" fn stacksegment_handler(stack_frame: InterruptStackFrame) {
+    log!("EXCEPTION: Stack segment fault\n{:#?}", stack_frame);
+    crate::hlt_loop()
+}
+
+extern "x86-interrupt" fn generalprotection_handler(stack_frame: InterruptStackFrame) {
+    log!("EXCEPTION: General protection fault\n{:#?}", stack_frame);
+    crate::hlt_loop()
+}
+
+extern "x86-interrupt" fn machinecheck_handler(stack_frame: InterruptStackFrame) {
+    log!("EXCEPTION: Machine check fault\n{:#?}", stack_frame);
+    crate::hlt_loop()
+}
+
+extern "x86-interrupt" fn alignmentcheck_handler(stack_frame: InterruptStackFrame) {
+    log!("EXCEPTION: Alignment check fault\n{:#?}", stack_frame);
     crate::hlt_loop()
 }
 

@@ -1,5 +1,4 @@
 use crate::drivers::initrd::initialize_initrd;
-use crate::logging;
 use crate::{arch::addressing::KERNEL_BASE, multiboot::MultibootInfo};
 use alloc::{string::String, vec::Vec};
 
@@ -125,8 +124,6 @@ pub fn initialize_fs(mb_info: &'static MultibootInfo) {
         initrd_location = *((mb_info.mods_addr as u64 + KERNEL_BASE) as *const u32);
         let initrd_end = *((mb_info.mods_addr as u64 + KERNEL_BASE) as *const u32).add(1);
         size = initrd_end - initrd_location;
-
-        log!("{} {} size: {}", initrd_location, initrd_end, size);
     }
 
     let root = initialize_initrd(initrd_location as u64, size as usize);

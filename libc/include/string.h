@@ -18,6 +18,8 @@ void *memcpy(void *dst, void *src, long n);
 char *strchr(char *s, int c);
 long strlen(char *s);
 int strcmp(char *s1, char *s2);
+int strcasecmp(const char *s1, const char *s2);
+int strncasecmp(const char *s1, const char *s2, long n);
 
 int strncmp(char *d, char *s, long n);
 char *strcat(char *d, char *s);

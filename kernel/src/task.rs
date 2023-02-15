@@ -1,7 +1,8 @@
 use core::arch::asm;
+use core::str::from_utf8_unchecked;
 
-use crate::arch::addressing::{PhysAddr, VirtAddr};
-use crate::arch::paging::{KERNEL_CR3, PAGE_SIZE};
+use crate::arch::addressing::VirtAddr;
+use crate::arch::paging::PAGE_SIZE;
 use crate::arch::registers::Cr3;
 use crate::filesystem::VFS_Node;
 use crate::logging;
@@ -13,6 +14,11 @@ use crate::{
 use alloc::vec::Vec;
 
 pub static mut MULTIPROCESSING: Option<Multiprocessing> = None;
+
+// Hack! Rework this!
+static mut PROGRAM_NAME: [u8; 64] = [0; 64];
+static mut PROGRAM_NAME_SIZE: usize = 0;
+static mut EXITING: bool = false;
 
 extern "C" {
     fn read_rip() -> u64;
@@ -105,22 +111,22 @@ impl Multiprocessing {
         let rbp: u64;
         asm!("mov {rsp}, rsp","mov {rbp}, rbp", rsp = out(reg) rsp, rbp = out(reg) rbp, options(nomem, nostack, preserves_flags));
 
+        PROGRAM_NAME[..program_name.len()].copy_from_slice(program_name.as_bytes());
+        PROGRAM_NAME_SIZE = program_name.len();
+
         let rip = read_rip();
 
         // When the execution returns to the previous process
-        if rip == 0xDEADC0DE {
+        if EXITING {
+            EXITING = false;
             return;
         }
-
+        EXITING = true;
         self.tasks[self.current_id as usize].registers.rsp = rsp;
         self.tasks[self.current_id as usize].registers.rbp = rbp;
         self.tasks[self.current_id as usize].registers.rip = rip;
 
         self.current_id += 1;
-
-        log!("0x{:x} 0x{:x}", rip, KERNEL_CR3);
-
-        Cr3::write_raw(PhysAddr::new(KERNEL_CR3), 0);
 
         // Create a page allocator for the process pages
         let page_allocator = PageAllocator::new_user(KERNEL_BASE);
@@ -134,12 +140,6 @@ impl Multiprocessing {
             open_fd,
         };
 
-        // Read the executable from the file
-        let executable = filesystem::fopen(program_name).unwrap();
-        let mut bytes: Vec<u8> = Vec::with_capacity(executable.size);
-        bytes.resize(executable.size, 0);
-        executable.read(0, executable.size, &mut bytes);
-
         // Allocate pages for the process
         let program_mem = task.page_allocator.alloc_next_page(1).unwrap();
         // !! HEAP will start at 0x200000
@@ -148,13 +148,6 @@ impl Multiprocessing {
         let stack_end_addr = stack.start_address.0 + PAGE_SIZE - 8;
 
         self.tasks.push(task);
-        log!(
-            "{:?}",
-            self.tasks[self.current_id as usize]
-                .page_allocator
-                .user_pages_addresses
-                .unwrap()[0]
-        );
 
         // Switch to the process pages
         Cr3::write_raw(
@@ -165,13 +158,18 @@ impl Multiprocessing {
                 .1,
             0,
         );
-        log!("2");
+
+        let path = from_utf8_unchecked(&PROGRAM_NAME[..PROGRAM_NAME_SIZE]);
+        // Read the executable from the file
+        let executable = filesystem::fopen(path).unwrap();
+        let mut bytes: Vec<u8> = Vec::with_capacity(executable.size);
+        bytes.resize(executable.size, 0);
+        executable.read(0, executable.size, &mut bytes);
         // Copy program
         core::ptr::copy_nonoverlapping(bytes.as_ptr(), 0 as *mut u8, bytes.len());
-        log!("3");
 
         // Set registers and jump
-        asm!("cli", "mov rsp, {stack}", "mov rbp, {stack}", "mov rax, 0xDEADC0DE", "sti", "mov rcx, 0", "jmp rcx", 
+        asm!("cli", "mov rsp, {stack}", "mov rbp, {stack}", "sti", "mov rcx, 0", "jmp rcx", 
                 stack = in(reg) stack_end_addr);
     }
 

@@ -1,5 +1,3 @@
-use core::ffi::c_void;
-
 /// Checks if an address is aligned to a specified alignment.
 #[inline]
 pub fn is_aligned(address: u64, alignment: u64) -> bool {

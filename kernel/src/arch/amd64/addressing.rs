@@ -1,6 +1,6 @@
 use core::fmt;
 
-use super::paging::PageTable;
+use super::paging::{PageTable, KERNEL_CR3};
 use crate::utils;
 
 pub const KERNEL_BASE: u64 = 0xFFFFFFFF80000000;
@@ -22,10 +22,11 @@ pub struct VirtAddr(pub u64);
 impl VirtAddr {
     pub fn translate_address(&self, physical_memory_offset: u64) -> Option<PhysAddr> {
         // read the active level 4 frame from the CR3 register
-        let (level_4_table_frame, _) = super::registers::Cr3::read();
+        //let (level_4_table_frame, _) = super::registers::Cr3::read();
 
         let table_indexes = [self.p4_index(), self.p3_index(), self.p2_index()];
-        let mut frame = level_4_table_frame;
+        //let mut frame = level_4_table_frame;
+        let mut frame = unsafe { PhysAddr::new(KERNEL_CR3) };
 
         // traverse the multi-level page table
         for index in table_indexes {

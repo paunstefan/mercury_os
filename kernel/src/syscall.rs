@@ -40,9 +40,11 @@ unsafe fn syscall_sleep(ms: u64) -> i64 {
 }
 
 unsafe fn syscall_exit() -> i64 {
-    // TODO: actually switch task
-    log!("EXIT");
-    crate::hlt_loop()
+    let mp_module = MULTIPROCESSING.as_mut().unwrap();
+
+    mp_module.exit();
+
+    0
 }
 
 unsafe fn syscall_getpid() -> i64 {
@@ -63,7 +65,6 @@ unsafe fn syscall_open(path_addr: u64) -> i64 {
         l
     };
     let path = from_utf8_unchecked(from_raw_parts(path_ptr, path_len));
-    log!("path: {}", path);
 
     let mp_module = MULTIPROCESSING.as_mut().unwrap();
 
@@ -74,7 +75,6 @@ unsafe fn syscall_open(path_addr: u64) -> i64 {
             mp_module.tasks[mp_module.current_id as usize]
                 .open_fd
                 .push(open_fd);
-            log!("fd: {}", fd);
             fd as i64
         }
         None => -1,
@@ -152,7 +152,6 @@ unsafe fn syscall_exec(path_addr: u64) -> i64 {
         l
     };
     let path = from_utf8_unchecked(from_raw_parts(path_ptr, path_len));
-    log!("path: {}", path);
 
     let mp_module = MULTIPROCESSING.as_mut().unwrap();
 

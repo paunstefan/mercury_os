@@ -9,5 +9,14 @@ void main()
     *x = 42;
     printf("%d\n", *x);
 
+    printf("Executing \"program.bin\"\n");
     syscall_exec("/program.bin");
+    printf("Back in parent\n");
+    printf("Executing \"program.bin\" again\n");
+    syscall_exec("/program.bin");
+    printf("Exiting\n");
+
+    while (1)
+    {
+    }
 }

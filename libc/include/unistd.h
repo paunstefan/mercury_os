@@ -16,6 +16,8 @@ int64_t read(int64_t fd, void *buf, uint64_t n);
 long fseek(int64_t fd, long offset, int whence);
 
 void exit(int status);
+int64_t uptime();
+void exec(char *path);
 
 int64_t sleep(uint64_t n);
 

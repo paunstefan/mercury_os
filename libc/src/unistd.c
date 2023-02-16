@@ -44,6 +44,16 @@ int64_t sleep(uint64_t n)
     return syscall_sleep(n);
 }
 
+int64_t uptime()
+{
+    return syscall_uptime();
+}
+
+void exec(char *path)
+{
+    syscall_exec(path);
+}
+
 long fseek(int64_t fd, long offset, int whence)
 {
     if (fd < 0)

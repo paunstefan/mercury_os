@@ -105,7 +105,8 @@ of the interrupt handlers (ISR). The first 32 entries in the IDT are reserved fo
 can be configured by the OS. The IDT is loaded by the CPU using the `lidt` instruction, which expects a pointer
 structure like the one for the GDT.
 
-Interrupt handlers differ from simple functions because they use a different calling convention
+Interrupt handlers differ from simple functions because they use a different calling convention, that is 
+saving all registers as opposed to just some of them.
 
 * <https://wiki.osdev.org/Interrupt>
 
@@ -145,7 +146,7 @@ A virtual address is split as following:
 
 The memory management system has 3 parts:
 
-- Frame allocator
+* Frame allocator
   
 It reserves physical memory in RAM using a bitmap allocator. Each page is represented as a bit that is 0 if unused and 1 if used.
 This bitmap is placed 8 bytes after KERNEL_END. When a request for memory is made, it searches for the first free page and returns
@@ -153,20 +154,92 @@ its address to the caller. On free, the bit is just set to 0.
 
 The frame allocator is a global structure shared by everyone.
 
-- Page allocator
+* Page allocator
 
 It allocates virtual memory that is mapped to a physical page previously allocated by the frame allocator. When a process
 requests memory, the page allocator finds space in a page table and adds a mapping to a physical address.
 
 One page allocator should exist per process, as each process has its own page tables.
 
-- Heap allocator
+* Heap allocator
 
 The heap allocator is the one that does what `malloc` and `free` usually do. It receives requests for a certain amount of memory
 and returns an address where that memory is reserved and mapped.
 
+Memory management is at the moment the most duct tape-y part of the OS and is in need of a rework.
+
+* <https://wiki.osdev.org/Memory_management>
 ## Filesystem
 
 For reading and writing files, at the moment MercuryOS uses a simple RAMDisk filesystem. It is a single file with a header
 containing the number of files, each file's name and location, followed by the file's contents. It is loaded into memory
 as a GRUB module. 
+
+* <https://wiki.osdev.org/File_Systems>
+
+## Processes
+
+Running different programs is the main reason to use an OS, so processes/tasks are probably the most important part.
+MercuryOS for the moment uses a monotasking system, where each program must run to completion before execution
+returns to the parent process(similar to old DOS systems).
+
+The OS keeps a stack of tasks and runs the process at the top until completion (or until that process spawns a new process).
+Each task holds its own page allocator as pages are created per process and a list of open file descriptors (the serial port
+used as stdin and stdout is opened by default by the OS for all processes). 
+
+The kernel has to start the initial process (called `init` in this case). A process is started in the following way
+(first 3 steps are skipped for `init`):
+
+* The RSP and RBP registers are saved
+* The RIP is saved using a small assembly function
+* The 3 registers are put into the current running task's structure
+* A new page allocator is created, together with the needed pages
+* Memory is allocated for the program text, heap and stack
+* The CR3 register it written with the new PML4
+* Program text is read from disk and written in its address space (at address 0)
+* The RSP, RBP are set to the new task's values
+* A `JMP` is executed to this process' address 0
+
+Task exiting (returning to the parent task) is done as following:
+* Current task is popped from the tasks stack
+* Its allocated memory is freed
+* CR3 is switched to the old process' PML4
+* RSP, RBP and RIP are set according to the values saved when switched to the child task
+
+Because switching tasks happens during an interrupt (see next section), all othe registers are saved
+on the process' stack and restored by the interrupt handler when execution restarts.
+
+The way processes work now in MercuryOS is pretty badly done, a scheduler based preemptive multitasking system
+should be implemented in the future.
+
+<https://wiki.osdev.org/Processes_and_Threads>
+
+## System calls
+
+To be able to do useful stuff (such as interacting with the hardware), user programs need to be able to
+use functionality reserved for the kernel. This is done using system calls.
+
+A system call is nothing more than a software interrupt (or a fancy one when using the `syscall` instruction).
+A different interrupt handler is used, as more control over the saved registers and the stack was needed so the
+`syscall_asm` handler was created, that saves all registers on the stack and preserves the RAX register to return to
+the caller.
+
+When a process wants to execute a system call, it interrupts the CPU using the `INT 0x80` instruction, with the 
+interrupt number in the RAX register and the rest of the arguments in the following registers(in order): 
+RDI, RSI, RDX, RCX, R8, R9.
+
+The syscalls supported as of now by MercuryOS are:
+
+* 0 -> read(fd, length, buffer_addr)
+* 1 -> write(fd, length, buffer_addr)
+* 2 -> open(path_addr)
+* 3 -> close(fd)
+* 4 -> sleep(ms)
+* 5 -> exit()
+* 6 -> getpid()
+* 7 -> uptime()
+* 8 -> exec(path_addr)
+* 9 -> blit(address)
+* 10 -> fseek(fd, offset, whence)
+
+<https://wiki.osdev.org/System_Calls>

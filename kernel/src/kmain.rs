@@ -103,7 +103,7 @@ unsafe fn init_kernel(multiboot: &'static MultibootInfo) {
     arch::interrupts::enable();
     let allocator =
         arch::paging::PageAllocator::new_kernel(511, 510, arch::addressing::KERNEL_BASE);
-    mm::ALLOCATOR.lock().init(allocator, 2);
+    mm::ALLOCATOR.lock().init(allocator, 6);
     log!("Initialized heap allocator");
     filesystem::initialize_fs(multiboot);
     log!("Initialized filesystem");

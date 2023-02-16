@@ -7,13 +7,13 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <errno.h>
+#include <stdlib.h>
 
 static FILE _stdout = {0, NULL, NULL, 0, 0, 0, 0};
 FILE *stdin = &_stdout;
 FILE *stdout = &_stdout;
 FILE *stderr = &_stdout;
 
-#if 0
 FILE *fopen(char *path, char *mode)
 {
     FILE *fp;
@@ -36,7 +36,6 @@ int fclose(FILE *fp)
 
     return ret;
 }
-#endif
 
 // Output
 

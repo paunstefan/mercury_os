@@ -12,8 +12,6 @@ use crate::{
 
 #[no_mangle]
 pub unsafe extern "C" fn syscall_handler(regs: Registers) {
-    //log!("{:?}", regs);
-
     let ret = match regs.rax {
         0 => syscall_read(regs.rdi, regs.rsi, regs.rdx),
         1 => syscall_write(regs.rdi, regs.rsi, regs.rdx),
@@ -28,8 +26,6 @@ pub unsafe extern "C" fn syscall_handler(regs: Registers) {
         10 => syscall_fseek(regs.rdi, regs.rsi, regs.rdx),
         _ => 0,
     };
-
-    //log!("Syscall return: {}", ret);
 
     core::arch::asm!("mov rax, {}", in(reg) ret)
 }

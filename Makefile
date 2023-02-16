@@ -78,7 +78,7 @@ iso: $(BIN) userspace/create_initrd.py
 	cd libc && $(MAKE)
 	cd userspace/init && $(MAKE)
 	python3 userspace/create_initrd.py userspace/initrd
-	genisoimage -R -b boot/grub/stage2_eltorito -no-emul-boot -boot-load-size 4 -A os -input-charset utf8 -quiet -boot-info-table -o os.iso iso
+	grub2-mkrescue -o os.iso iso/
 
 clean:
 	$(RM) -rf $(BIN) $(BIN).elf64 $(BIN).dsm $(OBJDIR)

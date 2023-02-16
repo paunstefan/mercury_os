@@ -1,6 +1,0 @@
-default=0
-timeout=0
-
-title mercury_os
-kernel /boot/kernel.amd64.bin
-module /modules/initrd

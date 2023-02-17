@@ -215,6 +215,32 @@ impl PageAllocator {
         }
     }
 
+    /// Allocates a special extra page for the framebuffer.
+    /// At the end of the kernel page table
+    pub fn alloc_framebuffer(&mut self, addr: PhysAddr) -> Page {
+        let page_indexes = [511, 510, 511];
+        let mut page_table_ptr: &mut PageTable = unsafe { &mut *self.pml4.as_mut_ptr() };
+
+        for index in &page_indexes[..2] {
+            page_table_ptr = unsafe {
+                &mut *VirtAddr::new(
+                    page_table_ptr[*index].addr().as_u64() + self.physical_memory_offset,
+                )
+                .as_mut_ptr()
+            };
+        }
+
+        use PageTableFlags::*;
+        page_table_ptr[page_indexes[2]].set_addr(addr.as_u64(), PRESENT | WRITABLE | HUGE_PAGE);
+
+        Page::from_start_address(VirtAddr::from_table_indexes(
+            page_indexes[0],
+            page_indexes[1],
+            page_indexes[2],
+        ))
+        .unwrap()
+    }
+
     /// Frees Page starting at given address
     pub fn free_vaddr(&mut self, addr: VirtAddr) {
         let page_indexes = [addr.p4_index(), addr.p3_index(), addr.p2_index()];

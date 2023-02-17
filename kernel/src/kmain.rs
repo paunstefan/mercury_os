@@ -55,6 +55,13 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
         init_kernel(mb_info);
     }
 
+    let fb_addr = mm::ALLOCATOR
+        .lock()
+        .page_allocator
+        .as_mut()
+        .unwrap()
+        .alloc_framebuffer(arch::addressing::PhysAddr::new(mb_info.framebuffer.addr));
+
     // End needed stuff
 
     {

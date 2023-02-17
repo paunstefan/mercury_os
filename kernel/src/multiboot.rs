@@ -2,7 +2,7 @@ use core::fmt;
 
 // TODO: table should actually be an union
 #[derive(Clone, Copy, Debug)]
-#[repr(C, packed(4))]
+#[repr(C, packed)]
 pub struct MultibootInfo {
     pub flags: u32,
     pub mem_lower: u32,
@@ -59,7 +59,7 @@ pub struct ELF_Section_Header_Table {
     pub shndx: u32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C, packed)]
 pub struct MmapEntry {
     pub size: u32,
@@ -86,17 +86,16 @@ impl From<u32> for MmapType {
     }
 }
 
-#[allow(unaligned_references)]
-impl fmt::Debug for MmapEntry {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut f = f.debug_struct("MmapEntry");
-        f.field("size", &format_args!("{}", self.size));
-        f.field("addr", &format_args!("0x{:X}", self.addr));
-        f.field("len", &format_args!("{}", self.len));
-        f.field(
-            "type",
-            &format_args!("{:?} ({})", MmapType::from(self.typ), self.typ),
-        );
-        f.finish()
-    }
-}
+// impl fmt::Debug for MmapEntry {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         let mut f = f.debug_struct("MmapEntry");
+//         f.field("size", &format_args!("{}", self.size));
+//         f.field("addr", &format_args!("0x{:X}", self.addr));
+//         f.field("len", &format_args!("{}", self.len));
+//         f.field(
+//             "type",
+//             &format_args!("{:?} ({})", MmapType::from(self.typ), self.typ),
+//         );
+//         f.finish()
+//     }
+// }

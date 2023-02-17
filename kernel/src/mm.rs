@@ -9,7 +9,7 @@ use crate::utils::align_up;
 pub static ALLOCATOR: SpinMutex<BumpAllocator> = SpinMutex::new(BumpAllocator::new());
 
 pub struct BumpAllocator {
-    page_allocator: Option<PageAllocator>,
+    pub page_allocator: Option<PageAllocator>,
     heap_start: usize,
     heap_end: usize,
     next: usize,

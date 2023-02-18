@@ -29,7 +29,10 @@ use core::panic::PanicInfo;
 
 use multiboot::MultibootInfo;
 
-use crate::task::{Multiprocessing, MULTIPROCESSING};
+use crate::{
+    drivers::framebuffer::{Framebuffer, FRAMEBUFFER},
+    task::{Multiprocessing, MULTIPROCESSING},
+};
 
 // TODO IMPORTANT: check unsafe usage
 
@@ -62,6 +65,13 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
         .unwrap()
         .alloc_framebuffer(arch::addressing::PhysAddr::new(mb_info.framebuffer.addr));
 
+    Framebuffer::init(
+        fb_addr.start_address,
+        mb_info.framebuffer.width as usize,
+        mb_info.framebuffer.height as usize,
+        mb_info.framebuffer.bpp,
+    );
+
     // End needed stuff
 
     {
@@ -85,6 +95,13 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
     let fs_root = unsafe { &**filesystem::FS_ROOT.as_mut().unwrap() };
     for f in fs_root.readdir().unwrap() {
         log!("{:?}", f);
+    }
+
+    unsafe {
+        FRAMEBUFFER
+            .as_mut()
+            .unwrap()
+            .fill(drivers::framebuffer::Rgb::new(0, 0, 255));
     }
 
     log!(":)\n\n");

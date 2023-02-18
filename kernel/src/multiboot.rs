@@ -47,7 +47,12 @@ pub struct MultibootFramebuffer {
     pub height: u32,
     pub bpp: u8,
     pub typ: u8,
-    pub reserved: u8,
+    pub red_field_positon: u8,
+    pub red_mask_size: u8,
+    pub green_field_positon: u8,
+    pub green_mask_size: u8,
+    pub blue_field_positon: u8,
+    pub blue_mask_size: u8,
 }
 
 #[derive(Clone, Copy, Debug)]

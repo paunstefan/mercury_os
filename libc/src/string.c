@@ -1,6 +1,7 @@
 #include <stddef.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdlib.h>
 
 long strlen(char *s)
 {
@@ -201,4 +202,11 @@ char *strncpy(char *d, char *s, long n)
     memcpy(d, s, len);
     memset(d + len, 0, n - len);
     return d;
+}
+
+char *strdup(char *s)
+{
+    char *dup = (char *)malloc(strlen(s) + 1);
+    strcpy(dup, s);
+    return dup;
 }

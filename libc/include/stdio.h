@@ -42,4 +42,6 @@ int fscanf(FILE *fp, char *fmt, ...);
 int vfscanf(FILE *fp, char *fmt, va_list ap);
 
 long fread(void *s, long sz, long n, FILE *fp);
+
+long ftell(FILE *stream);
 #endif

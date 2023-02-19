@@ -5,6 +5,7 @@ use core::{
 
 use crate::{
     arch::interrupts::Registers,
+    drivers::framebuffer::FRAMEBUFFER,
     filesystem::{self, VFS_Node},
     logging,
     task::MULTIPROCESSING,
@@ -157,5 +158,9 @@ unsafe fn syscall_exec(path_addr: u64) -> i64 {
 }
 
 unsafe fn syscall_blit(address: u64) -> i64 {
-    todo!()
+    let fb = FRAMEBUFFER.as_mut().unwrap();
+    let slice = from_raw_parts_mut(address as *mut u32, fb.width * fb.height);
+    fb.buffer.copy_from_slice(slice);
+
+    0
 }

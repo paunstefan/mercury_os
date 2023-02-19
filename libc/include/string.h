@@ -25,10 +25,6 @@ int strncmp(char *d, char *s, long n);
 char *strcat(char *d, char *s);
 char *strstr(char *string, char *substring);
 char *strncpy(char *d, char *s, long n);
-
-#if 0
-char *strdup(const char *s);
-
-#endif
+char *strdup(char *s);
 
 #endif

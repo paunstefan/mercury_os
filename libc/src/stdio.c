@@ -490,3 +490,8 @@ long fread(void *v, long sz, long n, FILE *fp)
             return n * sz - i - 1;
     return n * sz;
 }
+
+long ftell(FILE *stream)
+{
+    return fseek(stream->fd, 0, SEEK_CUR);
+}

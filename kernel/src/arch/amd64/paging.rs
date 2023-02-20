@@ -1,7 +1,6 @@
 use alloc::boxed::Box;
 
 use super::addressing::{PhysAddr, VirtAddr, KERNEL_BASE};
-use crate::logging;
 use crate::multiboot::{MmapEntry, MultibootInfo};
 use crate::utils;
 use core::{
@@ -68,7 +67,7 @@ impl PageAllocator {
 
         let mut l4 = Box::new(PageTable::new());
         let mut l3 = Box::new(PageTable::new());
-        let mut l2 = Box::new(PageTable::new());
+        let l2 = Box::new(PageTable::new());
 
         // Link the last entry to the kernel memory space
         (*l4)[511] =
@@ -207,9 +206,8 @@ impl PageAllocator {
             };
             page_table_ptr[page_indexes[2]]
                 .set_addr(frame.start_address.as_u64(), PRESENT | WRITABLE | HUGE_PAGE);
-            let ret = Page::from_start_address(addr);
 
-            ret
+            Page::from_start_address(addr)
         } else {
             todo!("Create page tables")
         }

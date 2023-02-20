@@ -5,7 +5,6 @@ use crate::arch::addressing::VirtAddr;
 use crate::arch::paging::PAGE_SIZE;
 use crate::arch::registers::Cr3;
 use crate::filesystem::VFS_Node;
-use crate::logging;
 
 use crate::{
     arch::{addressing::KERNEL_BASE, paging::PageAllocator},
@@ -84,9 +83,9 @@ impl Multiprocessing {
         executable.read(0, executable.size, &mut bytes);
 
         // Allocate pages for the process
-        let program_mem = task.page_allocator.alloc_next_page(1).unwrap();
+        let _program_mem = task.page_allocator.alloc_next_page(1).unwrap();
         // !! HEAP will start at 0x200000
-        let heap = task.page_allocator.alloc_next_page(4).unwrap();
+        let _heap = task.page_allocator.alloc_next_page(4).unwrap();
         let stack = task.page_allocator.alloc_next_page(1).unwrap();
         let stack_end_addr = stack.start_address.0 + PAGE_SIZE - 8;
 
@@ -141,9 +140,9 @@ impl Multiprocessing {
         };
 
         // Allocate pages for the process
-        let program_mem = task.page_allocator.alloc_next_page(1).unwrap();
+        let _program_mem = task.page_allocator.alloc_next_page(1).unwrap();
         // !! HEAP will start at 0x200000
-        let heap = task.page_allocator.alloc_next_page(4).unwrap();
+        let _heap = task.page_allocator.alloc_next_page(4).unwrap();
         let stack = task.page_allocator.alloc_next_page(1).unwrap();
         let stack_end_addr = stack.start_address.0 + PAGE_SIZE - 8;
 

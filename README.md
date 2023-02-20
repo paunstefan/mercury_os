@@ -51,7 +51,7 @@ As previously mentioned, the full OS needs GRUB with a module containing the fil
 it can be run using `make runiso` which will run the following command:
 
 ```bash
-qemu-system-x86_64  -cdrom os.iso -serial stdio -display none
+qemu-system-x86_64 -cdrom os.iso -serial stdio -display none
 ```
 
 ## Progress
@@ -65,7 +65,7 @@ qemu-system-x86_64  -cdrom os.iso -serial stdio -display none
 * [x] Processes
 * [x] Syscalls/User space
 * [x] LibC
-* [x] Graphics
+* [x] Framebuffer
 
 
 ## Organization

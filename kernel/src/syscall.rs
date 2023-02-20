@@ -7,7 +7,6 @@ use crate::{
     arch::interrupts::Registers,
     drivers::framebuffer::FRAMEBUFFER,
     filesystem::{self, VFS_Node},
-    logging,
     task::MULTIPROCESSING,
 };
 

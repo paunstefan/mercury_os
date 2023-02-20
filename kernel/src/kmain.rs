@@ -2,6 +2,8 @@
 #![feature(abi_x86_interrupt)]
 #![no_std]
 #![no_main]
+#![allow(dead_code)]
+#![allow(non_snake_case)]
 
 /// Macros, need to be loaded before everything else due to how rust parses
 #[macro_use]
@@ -30,7 +32,7 @@ use core::panic::PanicInfo;
 use multiboot::MultibootInfo;
 
 use crate::{
-    drivers::framebuffer::{Framebuffer, FRAMEBUFFER},
+    drivers::framebuffer::Framebuffer,
     task::{Multiprocessing, MULTIPROCESSING},
 };
 
@@ -58,20 +60,6 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
         init_kernel(mb_info);
     }
 
-    let fb_addr = mm::ALLOCATOR
-        .lock()
-        .page_allocator
-        .as_mut()
-        .unwrap()
-        .alloc_framebuffer(arch::addressing::PhysAddr::new(mb_info.framebuffer.addr));
-
-    Framebuffer::init(
-        fb_addr.start_address,
-        mb_info.framebuffer.width as usize,
-        mb_info.framebuffer.height as usize,
-        mb_info.framebuffer.bpp,
-    );
-
     // End needed stuff
 
     {
@@ -97,13 +85,6 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
         log!("{:?}", f);
     }
 
-    unsafe {
-        FRAMEBUFFER
-            .as_mut()
-            .unwrap()
-            .fill(drivers::framebuffer::Rgb::new(0, 0, 255));
-    }
-
     log!(":)\n\n");
 
     unsafe {
@@ -117,18 +98,38 @@ pub extern "C" fn kmain(multiboot_magic: u64, multiboot_info: u64) {
 unsafe fn init_kernel(multiboot: &'static MultibootInfo) {
     arch::gdt::init_tss();
     log!("Initialized TSS");
+
     arch::interrupts::init_idt();
     log!("Initialized IDT");
+
     arch::paging::init_pfa(multiboot);
     log!("Initialized PageFrameAllocator");
+
     arch::pic::PICS.lock().initialize();
     arch::pic::Timer::init_timer(1000); // 1 interrupt per ms
     log!("Initialized PIC and Timer");
+
     arch::interrupts::enable();
     let allocator =
         arch::paging::PageAllocator::new_kernel(511, 510, arch::addressing::KERNEL_BASE);
     mm::ALLOCATOR.lock().init(allocator, 6);
     log!("Initialized heap allocator");
+
     filesystem::initialize_fs(multiboot);
     log!("Initialized filesystem");
+
+    let fb_addr = mm::ALLOCATOR
+        .lock()
+        .page_allocator
+        .as_mut()
+        .unwrap()
+        .alloc_framebuffer(arch::addressing::PhysAddr::new(multiboot.framebuffer.addr));
+
+    Framebuffer::init(
+        fb_addr.start_address,
+        multiboot.framebuffer.width as usize,
+        multiboot.framebuffer.height as usize,
+        multiboot.framebuffer.bpp,
+    );
+    log!("Initialized framebuffer");
 }

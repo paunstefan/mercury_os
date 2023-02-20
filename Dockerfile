@@ -1,4 +1,4 @@
-FROM rust:latest
+FROM rust:1.67.1-buster
 
 WORKDIR /usr/src/mercury_os/
 
@@ -14,3 +14,4 @@ RUN apt install -qy gdb
 RUN apt install -qy tmux
 RUN apt install -qy grub2 xorriso
 RUN ln -s /usr/bin/grub-mkrescue /usr/bin/grub2-mkrescue
+RUN echo "export PATH=$PATH:/usr/local/cargo/bin" >> ~/.bashrc

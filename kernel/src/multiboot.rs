@@ -1,5 +1,3 @@
-use core::fmt;
-
 // TODO: table should actually be an union
 #[derive(Clone, Copy, Debug)]
 #[repr(C, packed)]
@@ -90,17 +88,3 @@ impl From<u32> for MmapType {
         }
     }
 }
-
-// impl fmt::Debug for MmapEntry {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-//         let mut f = f.debug_struct("MmapEntry");
-//         f.field("size", &format_args!("{}", self.size));
-//         f.field("addr", &format_args!("0x{:X}", self.addr));
-//         f.field("len", &format_args!("{}", self.len));
-//         f.field(
-//             "type",
-//             &format_args!("{:?} ({})", MmapType::from(self.typ), self.typ),
-//         );
-//         f.finish()
-//     }
-// }

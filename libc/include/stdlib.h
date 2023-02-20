@@ -8,6 +8,7 @@ void *realloc(void *v, long sz);
 
 int atoi(const char *s);
 long atol(const char *s);
+double atof(const char *s);
 
 long strtol(const char *s, char **endptr, int base);
 unsigned long strtoul(const char *s, char **endptr, int base);

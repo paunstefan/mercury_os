@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
-static FILE _stdout = {0, NULL, NULL, 0, 0, 0, 0};
+static FILE _stdout = {0, -1, NULL, NULL, 0, 0, 0, 0, 0};
 FILE *stdin = &_stdout;
 FILE *stdout = &_stdout;
 FILE *stderr = &_stdout;
@@ -279,7 +279,7 @@ void perror(char *s)
 
 int vsnprintf(char *dst, int sz, char *fmt, va_list ap)
 {
-    FILE f = {-1, NULL, NULL, 0, 0, 0, 0};
+    FILE f = {-1, -1, NULL, NULL, 0, 0, 0, 0};
     int ret;
     f.obuf = dst;
     f.osize = sz - 1;
@@ -348,6 +348,20 @@ long fwrite(void *v, long sz, long n, FILE *fp)
 static int ic(FILE *fp)
 {
     unsigned char ch;
+    if (EOF != fp->back)
+    {
+        int i = fp->back;
+        fp->back = EOF;
+        return i;
+    }
+    if (NULL != fp->ibuf)
+    {
+        if (fp->icur < fp->ilen)
+        {
+            return fp->ibuf[fp->icur++];
+        }
+        return -1;
+    }
     if (read(fp->fd, &ch, 1) <= 0)
         return EOF;
 
@@ -364,6 +378,13 @@ int getchar(void)
     return ic(stdin);
 }
 
+int ungetc(int c, FILE *fp)
+{
+    if (fp->back == EOF)
+        fp->back = c;
+    return fp->back;
+}
+
 static int iint(FILE *fp, void *dst, int t, int wid)
 {
     long n = 0;
@@ -376,12 +397,14 @@ static int iint(FILE *fp, void *dst, int t, int wid)
         c = ic(fp);
     if (!isdigit(c) || wid <= 0)
     {
+        ungetc(c, fp);
         return 1;
     }
     do
     {
         n = n * 10 + c - '0';
     } while (isdigit(c = ic(fp)) && --wid > 0);
+    ungetc(c, fp);
     if (t == 8)
         *(long *)dst = neg ? -n : n;
     else if (t == 4)
@@ -403,6 +426,7 @@ static int istr(FILE *fp, char *dst, int wid)
         *d++ = c;
     }
     *d = '\0';
+    ungetc(c, fp);
     return d == dst;
 }
 
@@ -416,8 +440,9 @@ int vfscanf(FILE *fp, char *fmt, va_list ap)
     {
         while (isspace((unsigned char)*fmt))
             fmt++;
-        // while (isspace(c = ic(fp)))
-        //     ;
+        while (isspace(c = ic(fp)))
+            ;
+        ungetc(c, fp);
         while (*fmt && *fmt != '%' && !isspace((unsigned char)*fmt))
         {
             if (*fmt++ != ic(fp))
@@ -477,6 +502,23 @@ int scanf(char *fmt, ...)
     int ret;
     va_start(ap, fmt);
     ret = vfscanf(stdin, fmt, ap);
+    va_end(ap);
+    return ret;
+}
+
+int vsscanf(char *s, char *fmt, va_list ap)
+{
+    FILE f = {-1, -1, NULL, NULL, 0, 0, 0, 0, 0};
+    f.ibuf = s;
+    f.ilen = strlen(s);
+    return vfscanf(&f, fmt, ap);
+}
+int sscanf(char *s, char *fmt, ...)
+{
+    va_list ap;
+    int ret;
+    va_start(ap, fmt);
+    ret = vsscanf(s, fmt, ap);
     va_end(ap);
     return ret;
 }

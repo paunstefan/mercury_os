@@ -11,9 +11,11 @@
 typedef struct
 {
     int64_t fd;
+    int back;          /* pushback buffer */
     char *ibuf, *obuf; /* input/output buffer */
     int isize, osize;  /* ibuf size */
     int ilen, olen;    /* length of data in buf */
+    int icur;          /* position in ibuf */
 } FILE;
 
 extern FILE *stdin;
@@ -38,6 +40,8 @@ long fwrite(void *s, long sz, long n, FILE *fp);
 int fgetc(FILE *fp);
 int getchar(void);
 int scanf(char *fmt, ...);
+int vsscanf(char *s, char *fmt, va_list ap);
+int sscanf(char *s, char *fmt, ...);
 int fscanf(FILE *fp, char *fmt, ...);
 int vfscanf(FILE *fp, char *fmt, va_list ap);
 

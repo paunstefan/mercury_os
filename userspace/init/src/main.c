@@ -121,19 +121,19 @@ void tokenize(char *line, char **command)
 {
     while (isspace(*line))
     {
-        line = line + 1;
+        line += 1;
     }
     command[0] = line;
 
     while (!isspace(*line))
     {
-        line = line + 1;
+        line += 1;
     }
     *line = 0;
-    line = line + 1;
+    line += 1;
     while (isspace(*line))
     {
-        line = line + 1;
+        line += 1;
     }
     command[1] = line;
 }

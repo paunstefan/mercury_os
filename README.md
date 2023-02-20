@@ -65,7 +65,7 @@ qemu-system-x86_64  -cdrom os.iso -serial stdio -display none
 * [x] Processes
 * [x] Syscalls/User space
 * [x] LibC
-* [ ] Graphics
+* [x] Graphics
 
 
 ## Organization

@@ -94,7 +94,7 @@ run:
 	qemu-system-x86_64 -kernel kernel.amd64.bin -serial stdio -display none
 
 runiso:
-	qemu-system-x86_64  -cdrom os.iso -serial stdio -display none
+	qemu-system-x86_64  -cdrom os.iso -serial stdio
 
 rundebug:
 	qemu-system-x86_64 -s -S -kernel kernel.amd64.bin -serial stdio -display none

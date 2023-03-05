@@ -35,6 +35,12 @@ pub fn init_idt() {
         IDT.interrupts[InterruptIndex::Timer.IRQ_index()]
             .set_handler_fn(timer_interrupt_handler as u64);
         IDT.interrupts[InterruptIndex::Syscall.IRQ_index()].set_handler_fn(syscall_asm as u64);
+        IDT.interrupts[InterruptIndex::Syscall.IRQ_index()]
+            .options
+            .disable_interrupts(false);
+
+        IDT.interrupts[InterruptIndex::Keyboard.IRQ_index()]
+            .set_handler_fn(keyboard_interrupt_handler as u64);
 
         IDT.overflow.set_handler_fn(overflow_handler as u64);
         IDT.invalid_tss.set_handler_fn(invalidtss_handler as u64);
@@ -52,6 +58,17 @@ pub fn init_idt() {
             .set_handler_fn(alignmentcheck_handler as u64);
 
         IDT.load();
+    }
+}
+
+extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    unsafe {
+        let scancode: u8 = crate::arch::io::inb(0x60);
+        crate::drivers::keyboard::KeyboardState::update(scancode);
+
+        crate::arch::pic::PICS
+            .lock()
+            .notify_end_of_interrupt(InterruptIndex::Keyboard.as_u8());
     }
 }
 
@@ -381,6 +398,7 @@ impl InterruptDescriptorTable {
 #[repr(u8)]
 pub enum InterruptIndex {
     Timer = super::pic::PIC_1_OFFSET,
+    Keyboard,
     Syscall = 0x80,
 }
 

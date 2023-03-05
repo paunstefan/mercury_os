@@ -36,13 +36,28 @@ pub fn initialize_devfs() -> *mut VFS_Node {
         finddir: None,
         mount_point: None,
     };
+    let keyboard = VFS_Node {
+        name: "keyboard".to_string(),
+        kind: Type::CharDev,
+        inode: 1,
+        size: 0,
+        read: Some(devfs_read),
+        write: None,
+        readdir: None,
+        finddir: None,
+        mount_point: None,
+    };
 
     let mut file_nodes = Vec::new();
     file_nodes.push(serial);
+    file_nodes.push(keyboard);
 
     let serial_dev = Box::new(super::serial::Serial);
     let mut devices: Vec<Box<dyn CharDev>> = Vec::new();
     devices.push(serial_dev);
+
+    let key_dev = Box::new(super::keyboard::Keyboard);
+    devices.push(key_dev);
 
     let dev_fs = DevFilesystem {
         root,

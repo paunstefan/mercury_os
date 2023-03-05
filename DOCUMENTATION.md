@@ -62,14 +62,14 @@ their address. (More on paging later)
 3) Enable Long mode in the MSR register (bit 8)
 4) Enable paging
 To enable paging you need to set bit 31 in the CR0 register.
-1) Load GDT (More on GDT later)
-2) Long jump to 64bit code
+5) Load GDT (More on GDT later)
+6) Long jump to 64bit code
 Using the 64bit kernel code segment in the GDT, jump to some 64bit code
-1) Set the segment registers
+7) Set the segment registers
 The segment registers need to be set to the kernel data segment (index 0x10 in this case)
-1) Initialize the stack
+8) Initialize the stack
 Leave some space somewhere and point the RSP register to the end of it.
-1) Finally, call the start function in the high level code.
+9) Finally, call the start function in the high level code.
 
 * <https://wiki.osdev.org/X86-64>
 
@@ -212,7 +212,7 @@ on the process' stack and restored by the interrupt handler when execution resta
 The way processes work now in MercuryOS is pretty badly done, a scheduler based preemptive multitasking system
 should be implemented in the future.
 
-<https://wiki.osdev.org/Processes_and_Threads>
+* <https://wiki.osdev.org/Processes_and_Threads>
 
 ## System calls
 
@@ -242,4 +242,4 @@ The syscalls supported as of now by MercuryOS are:
 * 9 -> blit(address)
 * 10 -> fseek(fd, offset, whence)
 
-<https://wiki.osdev.org/System_Calls>
+* <https://wiki.osdev.org/System_Calls>
